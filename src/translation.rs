@@ -94,7 +94,7 @@ pub fn encode_instruction(
         Some(a) => a,
         None => {
             if components[0] == "bytes" {
-                let line = line[5..].to_string();
+                let line = &line[5..].as_bytes();
                 let mut ret: Vec<u32> = Vec::new();
                 let mut is_in_string: bool = false;
                 
@@ -102,9 +102,9 @@ pub fn encode_instruction(
 
                     // FIXME 
                     let b0:u8 = line[idx];
-                    let b1:u8 = line[idx];
-                    let b2:u8 = line[idx];
-                    let b3:u8 = line[idx];
+                    let b1:u8 = line[idx+1];
+                    let b2:u8 = line[idx+2];
+                    let b3:u8 = line[idx+3];
 
                     ret.push(
                         (b0 << 24) as u32 +

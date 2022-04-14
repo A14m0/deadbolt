@@ -154,14 +154,14 @@ pub fn compile(prog: String, output: String) {
 
     for m in sections.iter() {
         for l in m.get_lines() {
-            let inst = match encode_instruction(l, &compile_table, &decode_table, &labels) {
+            let mut inst = match encode_instruction(l, &compile_table, &decode_table, &labels) {
                 Ok(a) => a,
                 Err(e) => {
                     status(Status::Error, format!("Failed to compile: {}", e));
                     std::process::exit(1);
                 }
             };
-            output.push(inst);
+            output.append(&mut inst);
         }
     }
 
