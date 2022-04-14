@@ -1,4 +1,5 @@
 use std::{collections::HashMap};
+use regex::Regex;
 use crate::processor::Instruction;
 
 pub fn build_translation_table() -> HashMap<u8, Instruction> {
@@ -94,25 +95,23 @@ pub fn encode_instruction(
         Some(a) => a,
         None => {
             if components[0] == "bytes" {
-                let line = &line[5..].as_bytes();
+                let line = &line[5..];
                 let mut ret: Vec<u32> = Vec::new();
-                let mut is_in_string: bool = false;
-                
-                for idx in (0..line.len()).step_by(4) {
+                let mut tmp: Vec<u8> = Vec::new();
+                let str_check = Regex::new("\"(.*?)\"").unwrap();
+                let byte_check = Regex::new("0[xX][0-9a-fA-F]+").unwrap();
 
-                    // FIXME 
-                    let b0:u8 = line[idx];
-                    let b1:u8 = line[idx+1];
-                    let b2:u8 = line[idx+2];
-                    let b3:u8 = line[idx+3];
-
-                    ret.push(
-                        (b0 << 24) as u32 +
-                        (b1 << 16) as u32 + 
-                        (b2 << 8) as u32 + 
-                        b3 as u32
-                    );
+                // look for strings
+                for str_match in str_check.captures_iter(line) {
+                    println!("{:?}", &str_match[1]);
                 }
+
+                println!("Bytes");
+                // look for bytes
+                for byte_match in byte_check.captures_iter(line) {
+                    println!("{:?}", &byte_match[0]);
+                }
+
                 return Ok(ret);
             }
             

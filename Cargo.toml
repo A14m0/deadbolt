@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 colored = "2"
 clap = "2.33.3"
+regex = "1"
 
 [package.release]
 strip = "symbols"

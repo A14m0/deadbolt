@@ -48,7 +48,8 @@ jmp .loop
 section .data
 
 .string
-bytes "This is an example of a thing with a label" 0
+bytes "This is an example of a thing with a label" 0x0
+bytes 0x00000000 
 ; note that the bytes operator supports both string and 
 ; and integer literals (in both hex and decimal)
 
