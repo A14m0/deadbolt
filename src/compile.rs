@@ -8,7 +8,7 @@ use crate::translation::{
 
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write};
 use colored::*;
 
 
@@ -75,7 +75,7 @@ pub fn compile(prog: String, output: String) {
     let compile_table = build_compile_table();
     let decode_table = build_decode_table();
     let mut sections: Vec<Section> = Vec::new();
-    let mut output: Vec<u32> = Vec::new();
+    let mut output_bytes: Vec<u32> = Vec::new();
     let mut labels: HashMap<String, u32> = HashMap::new();
     let mut skipped: usize = 0;
 
@@ -161,12 +161,26 @@ pub fn compile(prog: String, output: String) {
                     std::process::exit(1);
                 }
             };
-            output.append(&mut inst);
+            output_bytes.append(&mut inst);
         }
     }
 
     println!("Output: ");
-    println!("{:?}", output);
+    println!("{:?}", output_bytes);
+
+    let mut fout: File;
+    if output == "" {
+        fout = File::create("a.out".to_string()).unwrap();
+    } else {
+        fout = File::create(output).unwrap();
+    }
+
+    for entry in output_bytes.iter() {
+        fout.write_all(&entry.to_be_bytes()).unwrap();
+    }
+
+    status(Status::Info, format!("Successfully wrote bytes to file"));
+    
 }
 
 

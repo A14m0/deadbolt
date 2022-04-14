@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::fmt::{Display, Formatter, Result};
+use std::fmt::{Display, Formatter};
 use crate::translation::{
     build_translation_table,
     convert_to_signed
@@ -27,7 +27,7 @@ pub struct CPU {
 
     // program information
     stack: Vec<u32>,
-    prog: Vec<u32>, 
+    prog: Vec<u8>, 
     decode_table: HashMap<u8, Instruction>
 }
 
@@ -57,7 +57,7 @@ pub enum Instruction {
 }
 
 impl Display for CPU {
-    fn fmt(&self, f: &mut Formatter) -> Result {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "r0={}, r1={}, r2={}, r3={}\npc={}, sp={}, fl={}",
             self.r0, self.r1, self.r2, self.r3, self.pc, self.sp, self.fl)
     }
@@ -66,7 +66,7 @@ impl Display for CPU {
 
 impl CPU {
     /// initializes the CPU and loads the program into memory
-    pub fn init(prog: Vec<u32>) -> Self{
+    pub fn init(prog: Vec<u8>) -> Self{
         // initialize...
         CPU {
             // ... GP registers ...
@@ -97,39 +97,39 @@ impl CPU {
     /// decodes and executes instruction
     fn decode_and_execute(&mut self){
         let inst = self.prog[self.pc];
-        let op_code = (inst>>24) as u8;
-        let inst_type = self.decode_table[&op_code];
+        println!("OPCODE 0x{:x}", inst);
+        let inst_type = self.decode_table[&inst];
         
         match inst_type {
-            Instruction::Add => self.add((inst>>16) as u8, (inst>>8) as u8),
-            Instruction::Sub => self.sub((inst>>16) as u8, (inst>>8) as u8),
-            Instruction::Mul => self.mul((inst>>16) as u8, (inst>>8) as u8),            
-            Instruction::And => self.and((inst>>16) as u8, (inst>>8) as u8),
-            Instruction::Or => self.or((inst>>16) as u8, (inst>>8) as u8),
-            Instruction::Xor => self.xor((inst>>16) as u8, (inst>>8) as u8),
-            Instruction::Cmp => self.cmp((inst>>16) as u8, (inst>>8) as u8),
-            Instruction::Mov => self.mov((inst>>16) as u8, (inst>>8) as u8),
-            Instruction::MovDregSaddr => self.mov_dreg_saddr((inst>>16) as u8, (inst & 0xFFFF) as u16),
-            Instruction::MovDaddrSreg => self.mov_daddr_sreg((inst & 0xFFFF00) as u16, (inst>>8) as u8),
-            Instruction::JmpAddr => self.jmp_addr((inst & 0xFFFFFF) as usize),
+            Instruction::Add => self.add(self.prog[self.pc + 2], self.prog[self.pc + 3]),
+            Instruction::Sub => self.sub(self.prog[self.pc + 2], self.prog[self.pc + 3]),
+            Instruction::Mul => self.mul(self.prog[self.pc + 2], self.prog[self.pc + 3]),            
+            Instruction::And => self.and(self.prog[self.pc + 2], self.prog[self.pc + 3]),
+            Instruction::Or => self.or(self.prog[self.pc + 2], self.prog[self.pc + 3]),
+            Instruction::Xor => self.xor(self.prog[self.pc + 2], self.prog[self.pc + 3]),
+            Instruction::Cmp => self.cmp(self.prog[self.pc + 2], self.prog[self.pc + 3]),
+            Instruction::Mov => self.mov(self.prog[self.pc + 2], self.prog[self.pc + 3]),
+            Instruction::MovDregSaddr => self.mov_dreg_saddr(self.prog[self.pc+1], self.get_u16((self.pc+2) as usize).unwrap()),
+            Instruction::MovDaddrSreg => self.mov_daddr_sreg(self.get_u16((self.pc+1) as usize).unwrap(), self.prog[self.pc+2]),
+            Instruction::JmpAddr => self.jmp_addr(self.get_u24((inst+1) as usize).unwrap() as usize),
             Instruction::JmpImm => {
-                let a = inst & 0xFFFFFF;
+                let a = self.get_u32(inst as usize).unwrap() & 0xFFFFFF;
                 let b = convert_to_signed(a);
                 self.jmp_imm(b)
             },
-            Instruction::Ld => self.ld((inst>>16) as u8, (inst & 0xFFFF) as usize),
-            Instruction::Swp => self.swp((inst>>16) as u8, (inst>>8) as u8),
-            Instruction::PushAddr => self.push_addr((inst & 0xFFFFFF) as u32),
-            Instruction::PushReg => self.push_reg((inst & 0xFF0000) as u8),
-            Instruction::Pop => self.pop((inst>>16) as u8),
-            Instruction::Int => self.int((inst&0xFFFFFF) as u32),
+            Instruction::Ld => self.ld(self.prog[self.pc + 2] as u8, self.get_u16(self.pc+2).unwrap() as usize),
+            Instruction::Swp => self.swp(self.prog[self.pc + 2] as u8, self.prog[self.pc + 3]),
+            Instruction::PushAddr => self.push_addr(self.get_u24(self.pc + 1).unwrap()),
+            Instruction::PushReg => self.push_reg(self.prog[self.pc+1]),
+            Instruction::Pop => self.pop(self.prog[self.pc + 2] as u8),
+            Instruction::Int => self.int(self.get_u24(self.pc+1).unwrap()),
             Instruction::Nop => self.nop(),
             Instruction::Hlt => self.hlt(),
 
-            _ => panic!("Unknown opcode: 0x{:x}", op_code)
+            _ => panic!("Unknown opcode: 0x{:x}", &inst)
         }
         // increment program counter
-        self.pc += 1;
+        self.pc += 4;
 
     }
 
@@ -218,10 +218,10 @@ impl CPU {
     /// loads a 32-bit value from `addr` into `dest`
     fn ld(&mut self, dest: u8, addr: usize) {
         match dest {
-            0 => self.r0 = self.prog[addr],
-            1 => self.r1 = self.prog[addr],
-            2 => self.r2 = self.prog[addr],
-            3 => self.r3 = self.prog[addr],
+            0 => self.r0 = self.get_u32(addr).unwrap(),
+            1 => self.r1 = self.get_u32(addr).unwrap(),
+            2 => self.r2 = self.get_u32(addr).unwrap(),
+            3 => self.r3 = self.get_u32(addr).unwrap(),
             _ => panic!("Illicit destination value {}", dest)            
         }
     }
@@ -265,10 +265,10 @@ impl CPU {
     /// moves value from `src` (address) into `dest` (register)
     fn mov_dreg_saddr(&mut self, dest: u8, src: u16) {
         match dest {
-            0 => self.r0 = self.prog[src as usize],
-            1 => self.r1 = self.prog[src as usize],
-            2 => self.r2 = self.prog[src as usize],
-            3 => self.r3 = self.prog[src as usize],
+            0 => self.r0 = self.get_u32(src as usize).unwrap(),
+            1 => self.r1 = self.get_u32(src as usize).unwrap(),
+            2 => self.r2 = self.get_u32(src as usize).unwrap(),
+            3 => self.r3 = self.get_u32(src as usize).unwrap(),
             _ => panic!("Illicit destination value {}", dest)            
         }
     }
@@ -276,7 +276,7 @@ impl CPU {
     /// moves value from `src` (register) into `dest` (address)
     fn mov_daddr_sreg(&mut self, dest: u16, src: u8) {
         let o = self.get_reg(src);
-        self.prog[dest as usize] = o;
+        self.write_u32(dest as usize, o).unwrap();
     }
 
     /// swaps `r1` and `r2`
@@ -350,6 +350,56 @@ impl CPU {
     fn hlt(&mut self) {
         self.pc -= 1;
     } 
+
+
+    fn get_u32(&self, offset: usize) -> Result<u32, String> {
+        if offset as usize > self.prog.len() {
+
+            Err(format!("Offset reference is greater than program size ({} > {})", offset, self.prog.len()))
+        } else {
+            let mut ret: u32 = 0;
+            ret += (self.prog[offset] as u32) << 24;
+            ret += (self.prog[offset + 1] as u32) << 16;
+            ret += (self.prog[offset + 2] as u32) << 8;
+            ret += self.prog[offset + 3] as u32;
+            Ok(ret)
+        }
+    }
+
+    fn get_u24(&self, offset: usize) -> Result<u32, String> {
+        if offset as usize > self.prog.len() {
+            Err(format!("Offset reference is greater than program size"))
+        } else {
+            let mut ret: u32 = 0;
+            ret += (self.prog[offset] as u32) << 16;
+            ret += (self.prog[offset + 1] as u32) << 8;
+            ret += self.prog[offset + 2] as u32;
+            Ok(ret)
+        }
+    }
+
+    fn get_u16(&self, offset: usize) -> Result<u16, String> {
+        if offset as usize > self.prog.len() {
+            Err(format!("Offset reference is greater than program size"))
+        } else {
+            let mut ret: u16 = 0;
+            ret += (self.prog[offset] as u16) << 8;
+            ret += self.prog[offset + 1] as u16;
+            Ok(ret)
+        }
+    }
+
+    fn write_u32(&mut self, offset: usize, data: u32) -> Result<(), String> {
+        if offset as usize > self.prog.len() {
+            Err(format!("Offset reference is greater than program size"))
+        } else {
+            self.prog[offset] = ((data >> 24) & 0xFF).try_into().unwrap();
+            self.prog[offset + 1] = ((data >> 16) & 0xFF).try_into().unwrap();
+            self.prog[offset + 2] = ((data >> 8) & 0xFF).try_into().unwrap();
+            self.prog[offset + 3] = (data & 0xFF).try_into().unwrap();
+            Ok(())
+        }
+    }
 }
 
 

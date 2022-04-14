@@ -103,13 +103,38 @@ pub fn encode_instruction(
 
                 // look for strings
                 for str_match in str_check.captures_iter(line) {
-                    println!("{:?}", &str_match[1]);
+                    let str_raw = &str_match[1][1..str_match[1].len()-1];
+
+                    for idx in (0..str_raw.len()).step_by(4) {
+                        let mut tmp: [u8; 4] = [0,0,0,0]; 
+                        // make sure our index doesnt go over the thing
+                        for i in 0..4 {
+                            if idx + i < str_raw.len() {
+                                tmp[i] = str_raw.as_bytes()[idx + i];
+                            } 
+                        } 
+                        ret.push(
+                            ((tmp[0] as u32) << 24)+
+                            ((tmp[1] as u32) << 16) +
+                            ((tmp[2] as u32) << 8) + 
+                            tmp[3] as u32
+                        )
+                    }
+
                 }
 
                 println!("Bytes");
                 // look for bytes
                 for byte_match in byte_check.captures_iter(line) {
                     println!("{:?}", &byte_match[0]);
+                    let byte = &byte_match[0][1..byte_match[0].len()-1];
+                    let ret_byte = match u32::from_str_radix(byte, 16) {
+                        Ok(a) => a,
+                        Err(_e) => {
+                            0
+                        }
+                    };
+                    ret.push(ret_byte);
                 }
 
                 return Ok(ret);

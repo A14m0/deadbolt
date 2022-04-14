@@ -2,6 +2,8 @@ mod processor;
 mod compile;
 mod translation;
 
+use std::io::Read;
+
 use clap::{App, Arg, SubCommand, crate_version, crate_authors};
 use compile::compile;
 
@@ -51,7 +53,10 @@ fn main() {
         compile(path, output);
     } else if let Some(m) = matches.subcommand_matches("run") {
         // run program
-        let prog = vec![0x6a010100,0x6f000000];
+        let path = m.value_of("input").unwrap().to_string();
+        let mut f = std::fs::File::open(path).unwrap();
+        let mut prog: Vec<u8> = Vec::new();
+        f.read_to_end(&mut prog).unwrap();
         let mut proc = processor::CPU::init(prog);
         proc.run();
     } else {
