@@ -2,9 +2,62 @@ mod processor;
 mod compile;
 mod translation;
 
+use clap::{App, Arg, SubCommand, crate_version, crate_authors};
+use compile::compile;
 
 fn main() {
-    let prog = vec![0x6a010100,0x6f000000];
-    let mut proc = processor::CPU::init(prog);
-    proc.run();
+    // parse command line arguments
+    let matches = App::new("DeadBolt")
+                        .version(crate_version!())
+                        .author(crate_authors!())
+                        .about("Compiler and emulator for the DeadBolt instruction set")
+                        .subcommands(
+                            vec![
+                                SubCommand::with_name("compile")
+                                    .about("Compiles a program from source assembly file")
+                                    .arg(Arg::with_name("file")
+                                        .long("file")
+                                        .short("f")
+                                        .takes_value(true)
+                                        .required(true)
+                                        .help("File to compile")
+                                    )
+                                    .arg(Arg::with_name("output")
+                                        .long("output")
+                                        .short("o")
+                                        .takes_value(true)
+                                        .required(false)
+                                        .help("Path to save binary to")
+                                    ),
+                                SubCommand::with_name("run")
+                                    .about("Runs a binary")
+                                    .arg(Arg::with_name("input")
+                                        .long("input")
+                                        .short("i")
+                                        .takes_value(true)
+                                        .required(true)
+                                        .help("Path to the binary to run"))
+                            ]
+                        ).get_matches();
+
+    // determine which subcommand we will be using
+    if let Some(m) = matches.subcommand_matches("compile") {
+        // compile the thing
+        let path = m.value_of("file").unwrap().to_string();
+        let output = match m.value_of("output") {
+            Some(a) => a.to_string(),
+            None => "".to_string()
+        };
+        compile(path, output);
+    } else if let Some(m) = matches.subcommand_matches("run") {
+        // run program
+        let prog = vec![0x6a010100,0x6f000000];
+        let mut proc = processor::CPU::init(prog);
+        proc.run();
+    } else {
+        println!("No command provided. Use --help to see commands");
+
+    }
+
+    
 }

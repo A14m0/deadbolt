@@ -32,29 +32,28 @@ pub struct CPU {
 }
 
 /// defines instructions
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Instruction {
-    Sfg,            
     Ld,             
     Swp,            
-    Push,            
+    PushAddr,
+    PushReg,            
     Pop,            
     Nop,            
-    
     Add,            
     Sub,            
     Mul,            
-    
     And,            
     Or,             
     Xor,            
-    
-    Cmp,            
+    Cmp,    
+    Mov,        
     MovDregSaddr,   
     MovDaddrSreg,   
     Hlt,            
     JmpAddr,        
-    JmpImm          
+    JmpImm,
+    Int,
 }
 
 impl Display for CPU {
@@ -109,6 +108,7 @@ impl CPU {
             Instruction::Or => self.or((inst>>16) as u8, (inst>>8) as u8),
             Instruction::Xor => self.xor((inst>>16) as u8, (inst>>8) as u8),
             Instruction::Cmp => self.cmp((inst>>16) as u8, (inst>>8) as u8),
+            Instruction::Mov => self.mov((inst>>16) as u8, (inst>>8) as u8),
             Instruction::MovDregSaddr => self.mov_dreg_saddr((inst>>16) as u8, (inst & 0xFFFF) as u16),
             Instruction::MovDaddrSreg => self.mov_daddr_sreg((inst & 0xFFFF00) as u16, (inst>>8) as u8),
             Instruction::JmpAddr => self.jmp_addr((inst & 0xFFFFFF) as usize),
@@ -117,11 +117,12 @@ impl CPU {
                 let b = convert_to_signed(a);
                 self.jmp_imm(b)
             },
-            Instruction::Sfg => self.sfg((inst>>16) as u8, (inst & 0xFFFF) as u8),
             Instruction::Ld => self.ld((inst>>16) as u8, (inst & 0xFFFF) as usize),
             Instruction::Swp => self.swp((inst>>16) as u8, (inst>>8) as u8),
-            Instruction::Push => self.push((inst & 0xFFFFFF) as u32),
+            Instruction::PushAddr => self.push_addr((inst & 0xFFFFFF) as u32),
+            Instruction::PushReg => self.push_reg((inst & 0xFF0000) as u8),
             Instruction::Pop => self.pop((inst>>16) as u8),
+            Instruction::Int => self.int((inst&0xFFFFFF) as u32),
             Instruction::Nop => self.nop(),
             Instruction::Hlt => self.hlt(),
 
@@ -249,6 +250,18 @@ impl CPU {
         }
     }
 
+    /// moves value from `src` (register) into `dest` (register)
+    fn mov(&mut self, dest: u8, src: u8) {
+        let o = self.get_reg(src);
+        match dest {
+            0 => self.r0 = o,
+            1 => self.r1 = o,
+            2 => self.r2 = o,
+            3 => self.r3 = o,
+            _ => panic!("Illicit destination value {}", dest)            
+        }
+    }
+
     /// moves value from `src` (address) into `dest` (register)
     fn mov_dreg_saddr(&mut self, dest: u8, src: u16) {
         match dest {
@@ -288,8 +301,13 @@ impl CPU {
     }
 
     /// pushes `val` to the stack
-    fn push(&mut self, val: u32) {
+    fn push_addr(&mut self, val: u32) {
         self.stack.push(val);
+    }
+    
+    /// pushes `val` to the stack
+    fn push_reg(&mut self, reg: u8) {
+        self.stack.push(self.get_reg(reg));
     }
 
     /// pops the top value from the stack into `dest`
@@ -319,6 +337,12 @@ impl CPU {
             self.pc -= short.abs() as usize;
         } else {
             self.pc += short.abs() as usize;
+        }
+    }
+
+    fn int(&mut self, code: u32) {
+        match code {
+            _ => panic!("Unknown interrupt code {:x}", code)
         }
     }
 
