@@ -1,0 +1,3 @@
+[1] Create a compiler 
+    * Will need to take in an ASCII assemly program and spit out a flat binary
+[2] Make sure operations actually decode correctly and all work
