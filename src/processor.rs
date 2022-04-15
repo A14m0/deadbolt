@@ -40,20 +40,32 @@ pub enum Instruction {
     PushReg,            
     Pop,            
     Nop,            
-    Add,            
-    Sub,            
-    Mul,            
-    And,            
-    Or,             
-    Xor,            
-    Cmp,    
-    Mov,        
+    AddReg,
+    AddImm,            
+    SubReg,
+    SubImm,          
+    MulReg,
+    MulImm,            
+    AndReg,
+    AndImm,            
+    OrReg,
+    OrImm,             
+    XorReg,
+    XorImm,            
+    CmpReg,
+    CmpImm,    
+    MovDregSreg,    
+    MovDregSimm,    
     MovDregSaddr,   
     MovDaddrSreg,   
     Hlt,            
     JmpAddr,        
     JmpImm,
-    Int,
+    JmpReg,
+    JeqReg,
+    JeqImm,
+    IntReg,
+    IntImm
 }
 
 impl Display for CPU {
@@ -88,48 +100,79 @@ impl CPU {
     }
 
     /// run the processor
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> Result<(), String>{
         loop {
-            self.decode_and_execute();
+            //println!("\n{}", self);
+            self.decode_and_execute()?;
         }
     }
 
     /// decodes and executes instruction
-    fn decode_and_execute(&mut self){
+    fn decode_and_execute(&mut self) -> Result<(), String> {
+        if self.pc >= self.prog.len() {
+            return Err("Executing illicit memory".to_string());
+        }
         let inst = self.prog[self.pc];
-        println!("OPCODE 0x{:x}", inst);
+        //println!("OPCODE 0x{:x}", inst);
         let inst_type = self.decode_table[&inst];
         
         match inst_type {
-            Instruction::Add => self.add(self.prog[self.pc + 2], self.prog[self.pc + 3]),
-            Instruction::Sub => self.sub(self.prog[self.pc + 2], self.prog[self.pc + 3]),
-            Instruction::Mul => self.mul(self.prog[self.pc + 2], self.prog[self.pc + 3]),            
-            Instruction::And => self.and(self.prog[self.pc + 2], self.prog[self.pc + 3]),
-            Instruction::Or => self.or(self.prog[self.pc + 2], self.prog[self.pc + 3]),
-            Instruction::Xor => self.xor(self.prog[self.pc + 2], self.prog[self.pc + 3]),
-            Instruction::Cmp => self.cmp(self.prog[self.pc + 2], self.prog[self.pc + 3]),
-            Instruction::Mov => self.mov(self.prog[self.pc + 2], self.prog[self.pc + 3]),
+            Instruction::AddReg => self.add_reg(self.prog[self.pc + 1], self.prog[self.pc + 2]),
+            Instruction::AddImm => self.add_imm(self.prog[self.pc + 1], self.get_u16(self.pc + 2).unwrap() as u32),
+            Instruction::SubReg => self.sub_reg(self.prog[self.pc + 1], self.prog[self.pc + 2]),
+            Instruction::SubImm => self.sub_imm(self.prog[self.pc + 1], self.get_u16(self.pc + 2).unwrap() as u32),
+            Instruction::MulReg => self.mul_reg(self.prog[self.pc + 1], self.prog[self.pc + 2]),  
+            Instruction::MulImm => self.mul_imm(self.prog[self.pc + 1], self.get_u16(self.pc + 2).unwrap() as u32),            
+            Instruction::AndReg => self.and_reg(self.prog[self.pc + 1], self.prog[self.pc + 2]),
+            Instruction::AndImm => self.and_imm(self.prog[self.pc + 1], self.get_u16(self.pc + 2).unwrap() as u32),
+            Instruction::OrReg => self.or_reg(self.prog[self.pc + 1], self.prog[self.pc + 2]),
+            Instruction::OrImm => self.or_imm(self.prog[self.pc + 1], self.get_u16(self.pc + 2).unwrap() as u32),
+            Instruction::XorReg => self.xor_reg(self.prog[self.pc + 1], self.prog[self.pc + 2]),
+            Instruction::XorImm => self.xor_imm(self.prog[self.pc + 1], self.get_u16(self.pc + 2).unwrap() as u32),
+            Instruction::CmpReg => self.cmp_reg(self.prog[self.pc + 1], self.prog[self.pc + 2]),
+            Instruction::CmpImm => self.cmp_imm(self.prog[self.pc + 1], self.get_u16(self.pc + 2).unwrap() as u32),
+            Instruction::MovDregSreg => self.mov_dreg_sreg(self.prog[self.pc + 1], self.prog[self.pc + 3]),
+            Instruction::MovDregSimm => self.mov_dreg_simm(self.prog[self.pc + 1], self.get_u16(self.pc+2).unwrap()),
             Instruction::MovDregSaddr => self.mov_dreg_saddr(self.prog[self.pc+1], self.get_u16((self.pc+2) as usize).unwrap()),
             Instruction::MovDaddrSreg => self.mov_daddr_sreg(self.get_u16((self.pc+1) as usize).unwrap(), self.prog[self.pc+2]),
-            Instruction::JmpAddr => self.jmp_addr(self.get_u24((inst+1) as usize).unwrap() as usize),
-            Instruction::JmpImm => {
-                let a = self.get_u32(inst as usize).unwrap() & 0xFFFFFF;
-                let b = convert_to_signed(a);
-                self.jmp_imm(b)
+            Instruction::JmpAddr => {
+                self.jmp_addr(self.get_u24(self.pc+1).unwrap() as usize);
+                return Ok(())
             },
-            Instruction::Ld => self.ld(self.prog[self.pc + 2] as u8, self.get_u16(self.pc+2).unwrap() as usize),
-            Instruction::Swp => self.swp(self.prog[self.pc + 2] as u8, self.prog[self.pc + 3]),
+            Instruction::JmpImm => {
+                let a = self.get_u24(self.pc+1).unwrap();
+                let b = convert_to_signed(a);
+                self.jmp_imm(b);
+                return Ok(())   // note we bail early here so we dont increment pc
+            },
+            Instruction::JmpReg => {
+                self.jmp_reg(self.prog[self.pc+1]);
+                return Ok(())
+            },
+            Instruction::JeqImm => {
+                self.jeq_imm(self.get_u24(self.pc+1).unwrap());
+                return Ok(())
+            },
+            Instruction::JeqReg => {
+                self.jeq_reg(self.prog[self.pc+1]);
+                return Ok(())
+            },
+            Instruction::Ld => self.ld(self.prog[self.pc + 1], self.get_u16(self.pc+2).unwrap() as usize),
+            Instruction::Swp => self.swp(self.prog[self.pc + 1], self.prog[self.pc + 2]),
             Instruction::PushAddr => self.push_addr(self.get_u24(self.pc + 1).unwrap()),
             Instruction::PushReg => self.push_reg(self.prog[self.pc+1]),
-            Instruction::Pop => self.pop(self.prog[self.pc + 2] as u8),
-            Instruction::Int => self.int(self.get_u24(self.pc+1).unwrap()),
+            Instruction::Pop => self.pop(self.prog[self.pc + 1]),
+            Instruction::IntImm => self.int_imm(self.get_u24(self.pc+1).unwrap()),
+            Instruction::IntReg => self.int_reg(self.prog[self.pc+1]),
             Instruction::Nop => self.nop(),
             Instruction::Hlt => self.hlt(),
 
-            _ => panic!("Unknown opcode: 0x{:x}", &inst)
+            //_ => panic!("Unknown opcode: 0x{:x}", &inst)
         }
         // increment program counter
         self.pc += 4;
+
+        Ok(())
 
     }
 
@@ -145,20 +188,33 @@ impl CPU {
     }
 
     /// adds value in `src` into `dest`
-    fn add(&mut self, dest: u8, src: u8) {
+    fn add_reg(&mut self, dest: u8, src: u8) {
+        println!("ADD r{},r{}", dest, src);
         let v = self.get_reg(src);
         
         match dest {
-            0 => self.r0 + v,
-            1 => self.r1 + v,
-            2 => self.r2 + v,
-            3 => self.r3 + v,
+            0 => self.r0 += v,
+            1 => self.r1 += v,
+            2 => self.r2 += v,
+            3 => self.r3 += v,
+            _ => panic!("Illicit destination value {}", dest)            
+        };
+    }
+
+    fn add_imm(&mut self, dest: u8, src: u32) {
+        println!("ADDI r{},0x{:x}", dest, src);
+        match dest {
+            0 => self.r0 += src,
+            1 => self.r1 += src,
+            2 => self.r2 += src,
+            3 => self.r3 += src,
             _ => panic!("Illicit destination value {}", dest)            
         };
     }
 
     /// performs logical AND operation, storing result in `dest`
-    fn and(&mut self, dest: u8, src: u8) {
+    fn and_reg(&mut self, dest: u8, src: u8) {
+        println!("AND r{},r{}", dest, src);
         let o = self.get_reg(src);
         match dest {
             0 => self.r0 &= o,
@@ -169,8 +225,21 @@ impl CPU {
         }
     }
 
+    /// performs logical AND operation, storing result in `dest`
+    fn and_imm(&mut self, dest: u8, src: u32) {
+        println!("ANDI r{},0x{:x}", dest, src);
+        match dest {
+            0 => self.r0 &= src,
+            1 => self.r1 &= src,
+            2 => self.r2 &= src,
+            3 => self.r3 &= src,
+            _ => panic!("Illicit destination value {}", dest)            
+        }
+    }
+
     /// performs logical OR operation, storing result in `dest`
-    fn or(&mut self, dest: u8, src: u8) {
+    fn or_reg(&mut self, dest: u8, src: u8) {
+        println!("OR r{},r{}", dest, src);
         let o = self.get_reg(src);
         match dest {
             0 => self.r0 |= o,
@@ -181,8 +250,20 @@ impl CPU {
         }
     }
 
+    /// performs logical OR operation, storing result in `dest`
+    fn or_imm(&mut self, dest: u8, src: u32) {
+        println!("ORI r{},0x{:x}", dest, src);
+        match dest {
+            0 => self.r0 |= src,
+            1 => self.r1 |= src,
+            2 => self.r2 |= src,
+            3 => self.r3 |= src,
+            _ => panic!("Illicit destination value {}", dest)            
+        }
+    }
+
     /// performs logical XOR operation, storing result in `dest`
-    fn xor(&mut self, dest: u8, src: u8) {
+    fn xor_reg(&mut self, dest: u8, src: u8) {
         println!("XOR r{},r{}", dest, src);
         let o = self.get_reg(src);
         match dest {
@@ -194,11 +275,38 @@ impl CPU {
         }
     }
 
+    /// performs logical XOR operation, storing result in `dest`
+    fn xor_imm(&mut self, dest: u8, src: u32) {
+        println!("XORI r{},0x{:x}", dest, src);
+        match dest {
+            0 => self.r0 ^= src,
+            1 => self.r1 ^= src,
+            2 => self.r2 ^= src,
+            3 => self.r3 ^= src,
+            _ => panic!("Illicit destination value {}", dest)            
+        }
+    }
+
     /// compares two register values, storing success in
-    fn cmp(&mut self, test: u8, src: u8) {
-        let o = self.get_reg(src);
-        let t = self.get_reg(test);
-        let v = match (t-o) {
+    fn cmp_reg(&mut self, test: u8, src: u8) {
+        println!("CMP r{},r{}", test, src);
+        
+        let o = self.get_reg(src) as i64;
+        let t = self.get_reg(test) as i64;
+        let v = match t-o {
+            0 => 1,
+            _ => 0
+        };
+        self.fl |= v;
+    }
+
+    /// compares two register values, storing success in
+    fn cmp_imm(&mut self, test: u8, src: u32) {
+        println!("CMPI r{},0x{:x}", test, src);
+        
+        let t = self.get_reg(test) as i64;
+        let src = src as i64;
+        let v = match t-src {
             0 => 1,
             _ => 0
         };
@@ -217,6 +325,7 @@ impl CPU {
 
     /// loads a 32-bit value from `addr` into `dest`
     fn ld(&mut self, dest: u8, addr: usize) {
+        println!("LOAD r{}, 0x{:x}", dest, addr);
         match dest {
             0 => self.r0 = self.get_u32(addr).unwrap(),
             1 => self.r1 = self.get_u32(addr).unwrap(),
@@ -227,7 +336,8 @@ impl CPU {
     }
 
     /// multiplies `dest` with `src`, storing in `dest`
-    fn mul(&mut self, dest: u8, src: u8) {
+    fn mul_reg(&mut self, dest: u8, src: u8) {
+        println!("MUL r{},r{}", dest, src);
         let o = self.get_reg(src);
         match dest {
             0 => self.r0 *= o,
@@ -238,8 +348,21 @@ impl CPU {
         }
     }
 
+    /// multiplies `dest` with `src`, storing in `dest`
+    fn mul_imm(&mut self, dest: u8, src: u32) {
+        println!("MULI r{},r{}", dest, src);
+        match dest {
+            0 => self.r0 *= src,
+            1 => self.r1 *= src,
+            2 => self.r2 *= src,
+            3 => self.r3 *= src,
+            _ => panic!("Illicit destination value {}", dest)            
+        }
+    }
+
     /// subtracts `dest` with `src`, storing in `dest`
-    fn sub(&mut self, dest: u8, src: u8) {
+    fn sub_reg(&mut self, dest: u8, src: u8) {
+        println!("SUB r{},r{}", dest, src);
         let o = self.get_reg(src);
         match dest {
             0 => self.r0 -= o,
@@ -250,8 +373,21 @@ impl CPU {
         }
     }
 
+    /// subtracts `dest` with `src`, storing in `dest`
+    fn sub_imm(&mut self, dest: u8, src: u32) {
+        println!("SUB r{},0x{:x}", dest, src);
+        match dest {
+            0 => self.r0 -= src,
+            1 => self.r1 -= src,
+            2 => self.r2 -= src,
+            3 => self.r3 -= src,
+            _ => panic!("Illicit destination value {}", dest)            
+        }
+    }
+
     /// moves value from `src` (register) into `dest` (register)
-    fn mov(&mut self, dest: u8, src: u8) {
+    fn mov_dreg_sreg(&mut self, dest: u8, src: u8) {
+        println!("MOV r{},r{}", dest, src);
         let o = self.get_reg(src);
         match dest {
             0 => self.r0 = o,
@@ -262,8 +398,21 @@ impl CPU {
         }
     }
 
+    /// moves value from `src` (register) into `dest` (register)
+    fn mov_dreg_simm(&mut self, dest: u8, src: u16) {
+        println!("MOVI r{},0x{:x}", dest, src);
+        match dest {
+            0 => self.r0 = src as u32,
+            1 => self.r1 = src as u32,
+            2 => self.r2 = src as u32,
+            3 => self.r3 = src as u32,
+            _ => panic!("Illicit destination value {}", dest)            
+        }
+    }
+
     /// moves value from `src` (address) into `dest` (register)
     fn mov_dreg_saddr(&mut self, dest: u8, src: u16) {
+        println!("MOVA r{}, 0x{:x}", dest, src);
         match dest {
             0 => self.r0 = self.get_u32(src as usize).unwrap(),
             1 => self.r1 = self.get_u32(src as usize).unwrap(),
@@ -275,12 +424,14 @@ impl CPU {
 
     /// moves value from `src` (register) into `dest` (address)
     fn mov_daddr_sreg(&mut self, dest: u16, src: u8) {
+        println!("MOVR 0x{:x},r{}", dest, src);
         let o = self.get_reg(src);
         self.write_u32(dest as usize, o).unwrap();
     }
 
     /// swaps `r1` and `r2`
     fn swp(&mut self, r1: u8, r2: u8) {
+        println!("SWP r{},r{}", r1, r2);
         let o = self.get_reg(r2);
         let t = self.get_reg(r1);
 
@@ -302,16 +453,19 @@ impl CPU {
 
     /// pushes `val` to the stack
     fn push_addr(&mut self, val: u32) {
+        println!("PUSHA 0x{:x}", val);
         self.stack.push(val);
     }
     
     /// pushes `val` to the stack
     fn push_reg(&mut self, reg: u8) {
+        println!("PUSH r{}", reg);
         self.stack.push(self.get_reg(reg));
     }
 
     /// pops the top value from the stack into `dest`
     fn pop(&mut self, dest: u8) {
+        println!("POP r{}", dest);
         match dest {
             0 => self.r0 = self.stack.pop().unwrap(),
             1 => self.r1 = self.stack.pop().unwrap(),
@@ -323,16 +477,19 @@ impl CPU {
 
     /// does nothing
     fn nop(&mut self) {
+        println!("NOP");
         self.swp(0, 0);
     }
 
     /// performs a long jump 
     fn jmp_addr(&mut self, addr: usize) {
+        println!("JMPL 0x{}", addr);
         self.pc = addr;
     }
     
-    /// performs a short jump to offset stored in register
+    /// performs a short jump to offset 
     fn jmp_imm(&mut self, short: i32) {
+        println!("JMPI 0x{:x}", short);
         if short < 0 {
             self.pc -= short.abs() as usize;
         } else {
@@ -340,7 +497,50 @@ impl CPU {
         }
     }
 
-    fn int(&mut self, code: u32) {
+    /// performs a jump to an offset stored in a register
+    fn jmp_reg(&mut self, reg: u8) {
+        println!("JMP r{}", reg);
+        self.pc = self.get_reg(reg) as usize;
+    }
+    
+    /// performs a jump to an offset stored in a register
+    fn jeq_imm(&mut self, reg: u32) {
+        println!("JEQI 0x{:x}", reg);
+        if self.fl & 0x1 == 1 {
+            self.fl &= 0xfe;
+            self.pc = reg as usize;
+        } else {
+            self.pc += 4;
+        }
+    }
+
+    /// performs a jump to an offset stored in a register
+    fn jeq_reg(&mut self, reg: u8) {
+        println!("JEQ r{}", reg);
+        let o = self.get_reg(reg);
+
+        if self.fl & 0x1 == 1 {
+            self.fl &= 0xfe;
+            self.pc = o as usize;
+        } else {
+            self.pc += 4;
+        }
+    }
+
+    /// handles an immediate interrupt
+    fn int_imm(&mut self, code: u32) {
+        self.handle_interrupt(code);
+    }
+
+    /// handles an interrupt in a register
+    fn int_reg(&mut self, reg: u8) {
+        let code = self.get_reg(reg);
+
+        self.handle_interrupt(code);
+    }
+
+    /// handles interrupt codes
+    fn handle_interrupt(&mut self, code: u32) {
         match code {
             _ => panic!("Unknown interrupt code {:x}", code)
         }
@@ -348,14 +548,14 @@ impl CPU {
 
     /// halt the program
     fn hlt(&mut self) {
-        self.pc -= 1;
+        println!("HLT");
+        std::process::exit(1);
     } 
 
 
     fn get_u32(&self, offset: usize) -> Result<u32, String> {
-        if offset as usize > self.prog.len() {
-
-            Err(format!("Offset reference is greater than program size ({} > {})", offset, self.prog.len()))
+        if offset as usize > self.prog.len() -3 {
+            Ok(0)
         } else {
             let mut ret: u32 = 0;
             ret += (self.prog[offset] as u32) << 24;
@@ -391,14 +591,19 @@ impl CPU {
 
     fn write_u32(&mut self, offset: usize, data: u32) -> Result<(), String> {
         if offset as usize > self.prog.len() {
-            Err(format!("Offset reference is greater than program size"))
-        } else {
-            self.prog[offset] = ((data >> 24) & 0xFF).try_into().unwrap();
-            self.prog[offset + 1] = ((data >> 16) & 0xFF).try_into().unwrap();
-            self.prog[offset + 2] = ((data >> 8) & 0xFF).try_into().unwrap();
-            self.prog[offset + 3] = (data & 0xFF).try_into().unwrap();
-            Ok(())
-        }
+            // extend the space available 
+            let mut m: Vec<u8> = Vec::with_capacity(offset-self.prog.len() + 4);
+            for _ in 0..m.capacity() {
+                m.push(0);
+            }
+            self.prog.extend(m);
+        } 
+        
+        self.prog[offset] = ((data >> 24) & 0xFF).try_into().unwrap();
+        self.prog[offset + 1] = ((data >> 16) & 0xFF).try_into().unwrap();
+        self.prog[offset + 2] = ((data >> 8) & 0xFF).try_into().unwrap();
+        self.prog[offset + 3] = (data & 0xFF).try_into().unwrap();
+        Ok(())
     }
 }
 

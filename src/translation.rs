@@ -4,16 +4,24 @@ use crate::processor::Instruction;
 
 pub fn build_translation_table() -> HashMap<u8, Instruction> {
     let mut map: HashMap<u8, Instruction> = HashMap::new();
-    map.insert(0x11, Instruction::Add);
-    map.insert(0x02, Instruction::Sub);
-    map.insert(0x38, Instruction::Mul);
-    map.insert(0x41, Instruction::And);
-    map.insert(0x56, Instruction::Or);
-    map.insert(0x6a, Instruction::Xor);
-    map.insert(0x79, Instruction::Cmp);
-    map.insert(0x8d, Instruction::Mov);
+    map.insert(0x11, Instruction::AddReg);
+    map.insert(0x12, Instruction::AddImm);
+    map.insert(0x02, Instruction::SubReg);
+    map.insert(0x03, Instruction::SubImm);
+    map.insert(0x38, Instruction::MulReg);
+    map.insert(0x39, Instruction::MulImm);
+    map.insert(0x41, Instruction::AndReg);
+    map.insert(0x42, Instruction::AndImm);
+    map.insert(0x56, Instruction::OrReg);
+    map.insert(0x57, Instruction::OrImm);
+    map.insert(0x6a, Instruction::XorReg);
+    map.insert(0x6b, Instruction::XorImm);
+    map.insert(0x79, Instruction::CmpReg);
+    map.insert(0x80, Instruction::CmpImm);
+    map.insert(0x8d, Instruction::MovDregSreg);
     map.insert(0x8e, Instruction::MovDregSaddr);
     map.insert(0x8f, Instruction::MovDaddrSreg);
+    map.insert(0x90, Instruction::MovDregSimm);
     map.insert(0xb1, Instruction::Ld);
     map.insert(0xc5, Instruction::Swp);
     map.insert(0xd5, Instruction::PushAddr);
@@ -23,23 +31,35 @@ pub fn build_translation_table() -> HashMap<u8, Instruction> {
     map.insert(0x6f, Instruction::Hlt);
     map.insert(0x81, Instruction::JmpAddr);
     map.insert(0x82, Instruction::JmpImm);
-    map.insert(0xaa, Instruction::Int);
+    map.insert(0x83, Instruction::JmpReg);
+    map.insert(0x84, Instruction::JeqImm);
+    map.insert(0x85, Instruction::JeqReg);
+    map.insert(0xaa, Instruction::IntImm);
+    map.insert(0xab, Instruction::IntReg);
     
     map
 }
 
 pub fn build_compile_table() -> HashMap<Instruction, u8> {
     let mut map: HashMap<Instruction, u8> = HashMap::new();
-    map.insert(Instruction::Add, 0x11);
-    map.insert(Instruction::Sub, 0x02);
-    map.insert(Instruction::Mul, 0x38);
-    map.insert(Instruction::And, 0x41);
-    map.insert(Instruction::Or, 0x56);
-    map.insert(Instruction::Xor, 0x6a);
-    map.insert(Instruction::Cmp, 0x79);
-    map.insert(Instruction::Mov, 0x8d);
+    map.insert(Instruction::AddReg, 0x11);
+    map.insert(Instruction::AddImm, 0x12);
+    map.insert(Instruction::SubReg, 0x02);
+    map.insert(Instruction::SubImm, 0x03);
+    map.insert(Instruction::MulReg, 0x38);
+    map.insert(Instruction::MulImm, 0x39);
+    map.insert(Instruction::AndReg, 0x41);
+    map.insert(Instruction::AndImm, 0x42);
+    map.insert(Instruction::OrReg, 0x56);
+    map.insert(Instruction::OrImm, 0x57);
+    map.insert(Instruction::XorReg, 0x6a);
+    map.insert(Instruction::XorImm, 0x6b);
+    map.insert(Instruction::CmpReg, 0x79);
+    map.insert(Instruction::CmpImm, 0x80);
+    map.insert(Instruction::MovDregSreg, 0x8d);
     map.insert(Instruction::MovDregSaddr, 0x8e);
     map.insert(Instruction::MovDaddrSreg, 0x8f);
+    map.insert(Instruction::MovDregSimm, 0x90);
     map.insert(Instruction::Ld, 0xb1);
     map.insert(Instruction::Swp, 0xc5);
     map.insert(Instruction::PushAddr, 0xd5);
@@ -49,34 +69,50 @@ pub fn build_compile_table() -> HashMap<Instruction, u8> {
     map.insert(Instruction::Hlt, 0x6f);
     map.insert(Instruction::JmpAddr, 0x81);
     map.insert(Instruction::JmpImm, 0x82);
-    map.insert(Instruction::Int, 0xaa);
-
+    map.insert(Instruction::JmpReg, 0x83);
+    map.insert(Instruction::JeqImm, 0x84);
+    map.insert(Instruction::JeqReg, 0x85);
+    map.insert(Instruction::IntImm, 0xaa);
+    map.insert(Instruction::IntReg, 0xab);
+    
     
     map
 }
 
 pub fn build_decode_table() -> HashMap<&'static str, Instruction> {
     let mut map: HashMap<&'static str, Instruction> = HashMap::new();
-    map.insert("add", Instruction::Add);
-    map.insert("sub", Instruction::Sub);
-    map.insert("mul", Instruction::Mul);
-    map.insert("and", Instruction::And);
-    map.insert("or", Instruction::Or);
-    map.insert("xor", Instruction::Xor);
-    map.insert("cmp", Instruction::Cmp);
-    map.insert("mov", Instruction::Mov);
-    map.insert("movr", Instruction::MovDregSaddr);
-    map.insert("mova", Instruction::MovDaddrSreg);
+    map.insert("add", Instruction::AddReg);
+    map.insert("addi", Instruction::AddImm);
+    map.insert("sub", Instruction::SubReg);
+    map.insert("subi", Instruction::SubImm);
+    map.insert("mul", Instruction::MulReg);
+    map.insert("muli", Instruction::MulImm);
+    map.insert("and", Instruction::AndReg);
+    map.insert("andi", Instruction::AndImm);
+    map.insert("or", Instruction::OrReg);
+    map.insert("ori", Instruction::OrImm);
+    map.insert("xor", Instruction::XorReg);
+    map.insert("xori", Instruction::XorImm);
+    map.insert("cmp", Instruction::CmpReg);
+    map.insert("cmpi", Instruction::CmpImm);
+    map.insert("mov", Instruction::MovDregSreg);
+    map.insert("movi", Instruction::MovDregSimm);
+    map.insert("mova", Instruction::MovDregSaddr);
+    map.insert("movr", Instruction::MovDaddrSreg);
     map.insert("ld", Instruction::Ld);
     map.insert("swp", Instruction::Swp);
     map.insert("pusha", Instruction::PushAddr);
-    map.insert("pushr", Instruction::PushReg);
+    map.insert("push", Instruction::PushReg);
     map.insert("pop", Instruction::Pop);
     map.insert("nop", Instruction::Nop);
     map.insert("hlt", Instruction::Hlt);
     map.insert("jmpl", Instruction::JmpAddr);
-    map.insert("jmp", Instruction::JmpImm);
-    map.insert("int", Instruction::Int);
+    map.insert("jmpi", Instruction::JmpImm);
+    map.insert("jmp", Instruction::JmpReg);
+    map.insert("jeq", Instruction::JeqReg);
+    map.insert("jeqi", Instruction::JeqImm);
+    map.insert("int", Instruction::IntImm);
+    map.insert("intr", Instruction::IntReg);
 
     
     map
@@ -97,7 +133,6 @@ pub fn encode_instruction(
             if components[0] == "bytes" {
                 let line = &line[5..];
                 let mut ret: Vec<u32> = Vec::new();
-                let mut tmp: Vec<u8> = Vec::new();
                 let str_check = Regex::new("\"(.*?)\"").unwrap();
                 let byte_check = Regex::new("0[xX][0-9a-fA-F]+").unwrap();
 
@@ -148,9 +183,9 @@ pub fn encode_instruction(
     println!("{:?}", decoded_inst);
     
     let rt = match decoded_inst {
-        Instruction::Add | Instruction::Sub | Instruction::Mul | 
-        Instruction::And | Instruction::Or  | Instruction::Xor | 
-        Instruction::Cmp | Instruction::Swp | Instruction::Mov => {
+        Instruction::AddReg | Instruction::SubReg | Instruction::MulReg | 
+        Instruction::AndReg | Instruction::OrReg  | Instruction::XorReg | 
+        Instruction::CmpReg | Instruction::Swp | Instruction::MovDregSreg => {
             let mut dest = components[1].to_string();
             dest.retain(|x| x != ',');
             let dest_byte = match reg_to_byte(&dest){
@@ -166,7 +201,33 @@ pub fn encode_instruction(
             (oc << 24) + (dest_byte << 16) + (src_byte << 8)
             
         },
-        Instruction::PushReg | Instruction::Pop => {
+        Instruction::AddImm | Instruction::SubImm | Instruction::MulImm | 
+        Instruction::AndImm | Instruction::OrImm  | Instruction::XorImm | 
+        Instruction::CmpImm => {
+            let mut dest = components[1].to_string();
+            dest.retain(|x| x != ',');
+            let dest_byte = match reg_to_byte(&dest){
+                Ok(a) => a as u32,
+                Err(e) => return Err(e)
+            };
+            let src_byte: u32 = match labels.get(components[2]) {
+                Some(a) => *a,
+                None => {
+                    println!("{}", &components[2][2..]);
+                    match u32::from_str_radix(&components[2][2..], 16){
+                        Ok(a) => a,
+                        Err(e) => return Err(format!("Failed to convert address {}: {}", &components[2][2..],  e))
+                    }
+                }
+            };
+
+            // put it together
+            (oc << 24) + (dest_byte << 16) + src_byte
+            
+        },
+        
+        Instruction::PushReg | Instruction::Pop | 
+        Instruction::JmpReg | Instruction::IntReg | Instruction::JeqReg => {
             let dest_byte = match reg_to_byte(components[1]){
                 Ok(a) => a as u32,
                 Err(e) => return Err(e)
@@ -191,9 +252,9 @@ pub fn encode_instruction(
             };
 
             println!("{:x} {:x} {:x}", oc << 24, dest << 16, src);
-            (oc << 24) + ((dest << 16) & 0xFFFF00) + src
+            (oc << 24) + (dest << 8) + src
         }
-        Instruction::MovDregSaddr => {
+        Instruction::MovDregSaddr | Instruction::MovDregSimm => {
             let dest = match reg_to_byte(components[1]){
                 Ok(a) => a as u32,
                 Err(e) => return Err(e)
@@ -208,9 +269,9 @@ pub fn encode_instruction(
                 }
             };
 
-            (oc << 24) + (dest << 16) + src
+            (oc << 24) + (dest << 16) + (src & 0xFFFF)
         } 
-        Instruction::PushAddr | Instruction::JmpAddr => {
+        Instruction::PushAddr | Instruction::JmpAddr | Instruction::JeqImm => {
             let dest: u32 = match labels.get(components[1]) {
                 Some(a) => *a,
                 None => {
@@ -222,7 +283,7 @@ pub fn encode_instruction(
             };
 
             // put it together
-            (oc << 24) + ((dest << 16) & 0xFFFF00)
+            (oc << 24) + dest
         },
         Instruction::Ld => {
             // format: inst reg, addr
@@ -258,7 +319,7 @@ pub fn encode_instruction(
             
             (oc << 24) + (dest_byte << 16)
         },
-        Instruction::Int => {
+        Instruction::IntImm => {
             let dest_byte = match u32::from_str_radix(&components[1][2..], 16){
                 Ok(a) => a,
                 Err(e) => return Err(format!("Failed to convert address: {}", e))

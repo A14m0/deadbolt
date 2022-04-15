@@ -1,5 +1,5 @@
-[1] Create a compiler 
-    * Will need to take in an ASCII assemly program and spit out a flat binary
-[2] Make sure operations actually decode correctly and all work
-[3] Create interrupts
-[4] Fix how the hell we handle `bytes` thing
+[1] Make sure operations actually decode correctly and all work
+    [a] Fix parsing of JMPL instruction 
+[2] Create interrupts
+[3] Fix compiler
+    [a] Make compiler more adaptable

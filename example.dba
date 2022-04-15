@@ -1,0 +1,12 @@
+; This is a simple program that will count to 0xff and halt
+section .text
+movi r1, .done  ; save the done address to r1
+
+.beginning
+addi r0, 0x1    ; increment r0
+cmpi r0, 0xff   ; compare it to 0xff
+jeq r1          ; if its the same jump to .done
+jmpl .beginning ; otherwise jump to beginning
+
+.done
+hlt             ; halt the processor

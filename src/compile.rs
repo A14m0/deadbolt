@@ -109,7 +109,7 @@ pub fn compile(prog: String, output: String) {
                     // its a lable so push it to the labels HashMap
                     command.retain(|x| !x.is_whitespace());
                 
-                    labels.insert(command, match ((index-skipped)*4).try_into() {
+                    labels.insert(command, match ((index-skipped-1)*4).try_into() {
                         Ok(a) => {skipped += 1; a},
                         Err(e) => {
                             status(Status::Error, format!("Failed to parse address: {}", e));

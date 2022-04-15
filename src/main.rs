@@ -58,7 +58,12 @@ fn main() {
         let mut prog: Vec<u8> = Vec::new();
         f.read_to_end(&mut prog).unwrap();
         let mut proc = processor::CPU::init(prog);
-        proc.run();
+        match proc.run() {
+            Ok(_) => (),
+            Err(e) => {
+                println!("[ERROR] Encountered fatal error: {}", e);
+            }
+        };
     } else {
         println!("No command provided. Use --help to see commands");
 
