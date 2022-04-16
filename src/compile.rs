@@ -1,4 +1,4 @@
-use crate::processor::CPU;
+//use crate::processor::cpu::CPU;
 use crate::translation::{
     build_compile_table,
     build_translation_table,
@@ -10,6 +10,8 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 use colored::*;
+
+use crate::debug::debug;
 
 
 /// enum for the status of the compiler print
@@ -87,7 +89,7 @@ pub fn compile(prog: String, output: String) {
         let mut lineclone = line.clone();
         lineclone.retain(|x| !x.is_whitespace());
 
-        println!("Line {} - {} characters", index, line.len());
+        debug(format!("Line {} - {} characters", index, line.len()));
         if line.len() == 0 {
             skipped += 1;
             continue;
@@ -145,12 +147,12 @@ pub fn compile(prog: String, output: String) {
     }
 
     // now that we have put the lines in their corresponding thing
-    println!("Sections currently parsed:");
+    debug(format!("Sections currently parsed:"));
     for m in sections.iter() {
-        println!("");
-        println!("{:?}", m);
+        debug(format!(""));
+        debug(format!("{:?}", m));
     }
-    println!("Labels found: {:?}", labels);
+    debug(format!("Labels found: {:?}", labels));
 
     for m in sections.iter() {
         for l in m.get_lines() {
@@ -165,8 +167,8 @@ pub fn compile(prog: String, output: String) {
         }
     }
 
-    println!("Output: ");
-    println!("{:?}", output_bytes);
+    debug(format!("Output: "));
+    debug(format!("{:?}", output_bytes));
 
     let mut fout: File;
     if output == "" {

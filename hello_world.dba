@@ -1,0 +1,18 @@
+; this is a hello world program 
+section .text
+movi r1, .hello
+.begin
+mov r0, r1
+int 0x80
+ldr r0, r0
+cmpi r0, 0x0
+jeqi .done
+addi r1, 0x1
+jmpl .begin ; otherwise jump to beginning
+
+.done
+hlt
+
+.section data
+.hello
+bytes "Hello, world!" 0x2000

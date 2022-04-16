@@ -1,6 +1,7 @@
 use std::{collections::HashMap};
 use regex::Regex;
-use crate::processor::Instruction;
+use crate::processor::instructions::Instruction;
+use crate::debug::debug;
 
 pub fn build_translation_table() -> HashMap<u8, Instruction> {
     let mut map: HashMap<u8, Instruction> = HashMap::new();
@@ -22,7 +23,8 @@ pub fn build_translation_table() -> HashMap<u8, Instruction> {
     map.insert(0x8e, Instruction::MovDregSaddr);
     map.insert(0x8f, Instruction::MovDaddrSreg);
     map.insert(0x90, Instruction::MovDregSimm);
-    map.insert(0xb1, Instruction::Ld);
+    map.insert(0xb1, Instruction::LdImm);
+    map.insert(0xb2, Instruction::LdReg);
     map.insert(0xc5, Instruction::Swp);
     map.insert(0xd5, Instruction::PushAddr);
     map.insert(0xd6, Instruction::PushReg);
@@ -60,7 +62,8 @@ pub fn build_compile_table() -> HashMap<Instruction, u8> {
     map.insert(Instruction::MovDregSaddr, 0x8e);
     map.insert(Instruction::MovDaddrSreg, 0x8f);
     map.insert(Instruction::MovDregSimm, 0x90);
-    map.insert(Instruction::Ld, 0xb1);
+    map.insert(Instruction::LdImm, 0xb1);
+    map.insert(Instruction::LdReg, 0xb2);
     map.insert(Instruction::Swp, 0xc5);
     map.insert(Instruction::PushAddr, 0xd5);
     map.insert(Instruction::PushReg, 0xd6);
@@ -99,7 +102,8 @@ pub fn build_decode_table() -> HashMap<&'static str, Instruction> {
     map.insert("movi", Instruction::MovDregSimm);
     map.insert("mova", Instruction::MovDregSaddr);
     map.insert("movr", Instruction::MovDaddrSreg);
-    map.insert("ld", Instruction::Ld);
+    map.insert("ldi", Instruction::LdImm);
+    map.insert("ldr", Instruction::LdReg);
     map.insert("swp", Instruction::Swp);
     map.insert("pusha", Instruction::PushAddr);
     map.insert("push", Instruction::PushReg);
@@ -138,7 +142,7 @@ pub fn encode_instruction(
 
                 // look for strings
                 for str_match in str_check.captures_iter(line) {
-                    let str_raw = &str_match[1][1..str_match[1].len()-1];
+                    let str_raw = &str_match[1];
 
                     for idx in (0..str_raw.len()).step_by(4) {
                         let mut tmp: [u8; 4] = [0,0,0,0]; 
@@ -158,10 +162,10 @@ pub fn encode_instruction(
 
                 }
 
-                println!("Bytes");
+                debug(format!("Bytes"));
                 // look for bytes
                 for byte_match in byte_check.captures_iter(line) {
-                    println!("{:?}", &byte_match[0]);
+                    debug(format!("{:?}", &byte_match[0]));
                     let byte = &byte_match[0][1..byte_match[0].len()-1];
                     let ret_byte = match u32::from_str_radix(byte, 16) {
                         Ok(a) => a,
@@ -180,12 +184,14 @@ pub fn encode_instruction(
     };
     let oc = *(ct.get(decoded_inst).unwrap()) as u32;
             
-    println!("{:?}", decoded_inst);
+    debug(format!("{:?}", decoded_inst));
     
     let rt = match decoded_inst {
         Instruction::AddReg | Instruction::SubReg | Instruction::MulReg | 
         Instruction::AndReg | Instruction::OrReg  | Instruction::XorReg | 
-        Instruction::CmpReg | Instruction::Swp | Instruction::MovDregSreg => {
+        Instruction::CmpReg | Instruction::Swp | Instruction::MovDregSreg|
+        Instruction::LdReg => {
+            // format: inst REG, REG
             let mut dest = components[1].to_string();
             dest.retain(|x| x != ',');
             let dest_byte = match reg_to_byte(&dest){
@@ -203,7 +209,8 @@ pub fn encode_instruction(
         },
         Instruction::AddImm | Instruction::SubImm | Instruction::MulImm | 
         Instruction::AndImm | Instruction::OrImm  | Instruction::XorImm | 
-        Instruction::CmpImm => {
+        Instruction::CmpImm | Instruction::MovDregSaddr | Instruction::MovDregSimm | Instruction::LdImm => {
+            // format: inst REG, IMM 
             let mut dest = components[1].to_string();
             dest.retain(|x| x != ',');
             let dest_byte = match reg_to_byte(&dest){
@@ -213,7 +220,7 @@ pub fn encode_instruction(
             let src_byte: u32 = match labels.get(components[2]) {
                 Some(a) => *a,
                 None => {
-                    println!("{}", &components[2][2..]);
+                    debug(format!("{}", &components[2][2..]));
                     match u32::from_str_radix(&components[2][2..], 16){
                         Ok(a) => a,
                         Err(e) => return Err(format!("Failed to convert address {}: {}", &components[2][2..],  e))
@@ -228,6 +235,7 @@ pub fn encode_instruction(
         
         Instruction::PushReg | Instruction::Pop | 
         Instruction::JmpReg | Instruction::IntReg | Instruction::JeqReg => {
+            // format: inst REG
             let dest_byte = match reg_to_byte(components[1]){
                 Ok(a) => a as u32,
                 Err(e) => return Err(e)
@@ -237,6 +245,7 @@ pub fn encode_instruction(
             (oc << 24) + (dest_byte << 16)
         },
         Instruction::MovDaddrSreg => {
+            // format: inst ADDR, REG
             let dest: u32 = match labels.get(components[1]) {
                 Some(a) => *a,
                 None => {
@@ -251,10 +260,11 @@ pub fn encode_instruction(
                 Err(e) => return Err(e)
             };
 
-            println!("{:x} {:x} {:x}", oc << 24, dest << 16, src);
+            debug(format!("{:x} {:x} {:x}", oc << 24, dest << 16, src));
             (oc << 24) + (dest << 8) + src
         }
-        Instruction::MovDregSaddr | Instruction::MovDregSimm => {
+        /*Instruction::MovDregSaddr | Instruction::MovDregSimm => {
+            // format: inst REG, ADDR
             let dest = match reg_to_byte(components[1]){
                 Ok(a) => a as u32,
                 Err(e) => return Err(e)
@@ -270,8 +280,9 @@ pub fn encode_instruction(
             };
 
             (oc << 24) + (dest << 16) + (src & 0xFFFF)
-        } 
-        Instruction::PushAddr | Instruction::JmpAddr | Instruction::JeqImm => {
+        } */
+        Instruction::PushAddr | Instruction::JmpAddr | Instruction::JeqImm | Instruction::JmpImm | Instruction::IntImm=> {
+            // format: inst ADDR
             let dest: u32 = match labels.get(components[1]) {
                 Some(a) => *a,
                 None => {
@@ -285,8 +296,8 @@ pub fn encode_instruction(
             // put it together
             (oc << 24) + dest
         },
-        Instruction::Ld => {
-            // format: inst reg, addr
+        /*Instruction::LdImm => {
+            // format: inst REG, ADDR
             let mut dest = components[1].to_string();
             dest.retain(|x| x != ',');
             let dest_byte = match reg_to_byte(&dest){
@@ -303,8 +314,9 @@ pub fn encode_instruction(
 
             // put it together
             (oc << 24) + (dest_byte << 16) + src
-        },
-        Instruction::JmpImm => {
+        },*/
+        /*Instruction::JmpImm => {
+            // format: inst ADDR
             let dest_byte = match labels.get(components[1]) {
                 Some(a) => *a,
                 None => {
@@ -318,16 +330,18 @@ pub fn encode_instruction(
             
             
             (oc << 24) + (dest_byte << 16)
-        },
-        Instruction::IntImm => {
+        },*/
+        /*Instruction::IntImm => {
+            // format: inst ADDR
             let dest_byte = match u32::from_str_radix(&components[1][2..], 16){
                 Ok(a) => a,
                 Err(e) => return Err(format!("Failed to convert address: {}", e))
             };
 
             (oc << 24) + (dest_byte << 16)
-        },
+        },*/
         Instruction::Hlt | Instruction::Nop => {
+            // format: inst
             oc << 24
         }
         

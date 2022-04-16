@@ -1,6 +1,7 @@
 mod processor;
 mod compile;
 mod translation;
+mod debug;
 
 use std::io::Read;
 
@@ -57,7 +58,7 @@ fn main() {
         let mut f = std::fs::File::open(path).unwrap();
         let mut prog: Vec<u8> = Vec::new();
         f.read_to_end(&mut prog).unwrap();
-        let mut proc = processor::CPU::init(prog);
+        let mut proc = processor::cpu::CPU::init(prog);
         match proc.run() {
             Ok(_) => (),
             Err(e) => {
