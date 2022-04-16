@@ -329,6 +329,7 @@ impl CPU {
         
         let t = self.get_reg(test) as i64;
         let src = src as i64;
+        debug(format!("\t{}-{}\n\n\n\n", t, src));
         let v = match t-src {
             0 => 1,
             _ => 0

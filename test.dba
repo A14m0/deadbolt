@@ -4,7 +4,7 @@ section .text
 nop
 nop
 nop
-
+hlt
 
 
 section .data

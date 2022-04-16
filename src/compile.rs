@@ -79,8 +79,8 @@ pub fn compile(prog: String, output: String) {
     let mut sections: Vec<Section> = Vec::new();
     let mut output_bytes: Vec<u32> = Vec::new();
     let mut labels: HashMap<String, u32> = HashMap::new();
-    let mut skipped: usize = 0;
-
+    let mut prev_bytes: u32 = 0;
+    
 
 
     // read file line by line
@@ -89,11 +89,12 @@ pub fn compile(prog: String, output: String) {
         let mut lineclone = line.clone();
         lineclone.retain(|x| !x.is_whitespace());
 
-        debug(format!("Line {} - {} characters", index, line.len()));
-        if line.len() == 0 {
-            skipped += 1;
+        debug(format!("Line {} - {} characters (prev bytes={})", index, line.len(), prev_bytes));
+        if lineclone.len() == 0 {
             continue;
         }
+
+        println!("{}", line);
 
         // remove comment lines
         if lineclone.chars().next().unwrap() != ';' {
@@ -111,13 +112,13 @@ pub fn compile(prog: String, output: String) {
                     // its a lable so push it to the labels HashMap
                     command.retain(|x| !x.is_whitespace());
                 
-                    labels.insert(command, match ((index-skipped-1)*4).try_into() {
-                        Ok(a) => {skipped += 1; a},
+                    labels.insert(command, prev_bytes); /*match ((index*4-prev_bytes)).try_into() {
+                        Ok(a) => a,
                         Err(e) => {
                             status(Status::Error, format!("Failed to parse address: {}", e));
                             std::process::exit(1);
                         }
-                    });
+                    } */
 
                 } else {
                     // its a line that contains a label, but doesnt define one
@@ -129,6 +130,7 @@ pub fn compile(prog: String, output: String) {
                         Some(a) => a
                     };
                     section.push_line(line);
+                    prev_bytes += 4;
                 }
             } else {
                 // its not a label or section declaration
@@ -140,10 +142,9 @@ pub fn compile(prog: String, output: String) {
                     Some(a) => a
                 };
                 section.push_line(line);
+                prev_bytes += 4;
             }
-        } else {
-            skipped += 1;
-        }
+        } 
     }
 
     // now that we have put the lines in their corresponding thing

@@ -13,6 +13,6 @@ jmpl .begin ; otherwise jump to beginning
 .done
 hlt
 
-.section data
+section .data
 .hello
 bytes "Hello, world!" 0x2000

@@ -62,7 +62,7 @@ fn main() {
         match proc.run() {
             Ok(_) => (),
             Err(e) => {
-                println!("[ERROR] Encountered fatal error: {}", e);
+                println!("[ERROR] Encountered fatal error: {}\n{}", e, proc);
             }
         };
     } else {
