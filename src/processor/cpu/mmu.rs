@@ -44,7 +44,7 @@ impl Index<usize> for MMU {
     type Output = u8;
     fn index(&self, s: usize) -> &u8 {
         // translate the address into a useful address
-        let page_num = s & (0xFFFFFFFF - PAGE_MASK);
+        let page_num = (s & (0xFFFFFFFF - PAGE_MASK)) >> PAGE_MASK.count_ones();
         let page_offset = s & PAGE_MASK;
         debug(format!("MMU: Reading page number {}, offset {} (s={})", page_num, page_offset, s));
 
@@ -55,7 +55,7 @@ impl Index<usize> for MMU {
 impl IndexMut<usize> for MMU {
     fn index_mut(&mut self, s: usize) -> &mut u8 {
         // translate the address into a useful address
-        let page_num = s & (0xFFFFFFFF - PAGE_MASK);
+        let page_num = (s & (0xFFFFFFFF - PAGE_MASK)) >> PAGE_MASK.count_ones();
         let page_offset = s & PAGE_MASK;
         
         debug(format!("MMU: Writing page number {}, offset {} (s={})", page_num, page_offset, s));
