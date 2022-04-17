@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::io::{Write, Read};
+use std::io::Write;
 use getch::Getch;
 
 use super::CPU;

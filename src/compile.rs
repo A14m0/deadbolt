@@ -17,20 +17,20 @@ use crate::debug::debug;
 #[derive(Clone, Copy, Debug)]
 enum Status {
     Info,
-    Warning,
+    //Warning,
     Error
 }
 
 
 #[derive(Clone, Debug)]
 struct Section {
-    name: String,
+    _name: String,
     lines: Vec<String>
 }
 
 impl Section {
-    fn new(name: String) -> Self{
-        Section { name, lines: Vec::new() }
+    fn new(_name: String) -> Self{
+        Section { _name, lines: Vec::new() }
     }
     fn push_line(&mut self, line: String) {
         self.lines.push(line);
@@ -48,9 +48,9 @@ fn status(s: Status, msg: String) {
         Status::Info => {
             println!("{} - {}", "[INFO]".green(), msg)
         },
-        Status::Warning => {
+        /*Status::Warning => {
             println!("{} - {}", "[WARN]".yellow(), msg)
-        },
+        },*/
         Status::Error =>  {
             println!("{} - {}", "[FAIL]".red(), msg)
         }
