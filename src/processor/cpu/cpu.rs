@@ -29,9 +29,10 @@ pub struct CPU {
     fl: u8, // flag register
     /*
     Flags: 
-        Zero: 0x1
-        Carry: 0x2
-        Greater: 0x4
+        Zero: 1
+        Carry: 2
+        Greater: 3
+        Echo: 4
     */
 
     // program information
@@ -135,6 +136,8 @@ impl CPU {
             },
             Instruction::LdImm => self.ld_imm(),
             Instruction::LdReg => self.ld_reg(),
+            Instruction::SfgImm => self.sfg_imm(),
+            Instruction::SfgReg => self.sfg_reg(),
             Instruction::Swp => self.swp(),
             Instruction::PushAddr => self.push_addr(),
             Instruction::PushReg => self.push_reg(),
@@ -154,13 +157,35 @@ impl CPU {
     }
 
     /// gets the value of a register
-    pub fn get_reg(&self, r: u8) -> u32 {
+    pub fn get_reg(&self, r: u8) -> Result<u32, String> {
         match r {
-            0 => self.r0,
-            1 => self.r1,
-            2 => self.r2,
-            3 => self.r3,
-            _ => panic!("Illicit value {}", r)
+            0 => Ok(self.r0),
+            1 => Ok(self.r1),
+            2 => Ok(self.r2),
+            3 => Ok(self.r3),
+            _ => Err(format!("Illicit value {}", r))
+        }
+    }
+
+    /// sets the value of a register
+    pub fn set_reg(&mut self, r: u8, v: u32) -> Result<u32, String> {
+        match r {
+            0 => self.r0 = v,
+            1 => self.r1 = v,
+            2 => self.r2 = v,
+            3 => self.r3 = v,
+            _ => return Err(format!("Illicit value {}", r))
+        };
+
+        Ok(0)
+    }
+
+    /// checks if a certain flag is set
+    pub fn is_flag_set(&self, flag: u8) -> bool {
+        let v = flag & self.fl;
+        match v {
+            0 => false,
+            _ => true
         }
     }
 
@@ -170,7 +195,7 @@ impl CPU {
         let src = self.memory[self.pc + 2];
 
         debug(format!("ADD r{},r{}", dest, src));
-        let v = self.get_reg(src);
+        let v = self.get_reg(src)?;
         
         match dest {
             0 => self.r0 += v,
@@ -204,7 +229,7 @@ impl CPU {
         let src = self.memory[self.pc + 2];
 
         debug(format!("AND r{},r{}", dest, src));
-        let o = self.get_reg(src);
+        let o = self.get_reg(src)?;
         match dest {
             0 => self.r0 &= o,
             1 => self.r1 &= o,
@@ -238,7 +263,7 @@ impl CPU {
         let src = self.memory[self.pc + 2];
 
         debug(format!("OR r{},r{}", dest, src));
-        let o = self.get_reg(src);
+        let o = self.get_reg(src)?;
         match dest {
             0 => self.r0 |= o,
             1 => self.r1 |= o,
@@ -273,7 +298,7 @@ impl CPU {
         let src = self.memory[self.pc + 2];
 
         debug(format!("XOR r{},r{}", dest, src));
-        let o = self.get_reg(src);
+        let o = self.get_reg(src)?;
         match dest {
             0 => self.r0 ^= o,
             1 => self.r1 ^= o,
@@ -309,8 +334,8 @@ impl CPU {
 
         debug(format!("CMP r{},r{}", test, src));
         
-        let o = self.get_reg(src) as i64;
-        let t = self.get_reg(test) as i64;
+        let o = self.get_reg(src)? as i64;
+        let t = self.get_reg(test)? as i64;
         let v = match t-o {
             0 => 1,
             _ => 0
@@ -327,7 +352,7 @@ impl CPU {
 
         debug(format!("CMPI r{},0x{:x}", test, src));
         
-        let t = self.get_reg(test) as i64;
+        let t = self.get_reg(test)? as i64;
         let src = src as i64;
         debug(format!("\t{}-{}\n\n\n\n", t, src));
         let v = match t-src {
@@ -339,14 +364,22 @@ impl CPU {
     }
 
     /// sets the flag value according to `val` and `flags`
-    fn _sfg(&mut self, flag: u8, _val: u8) -> Result<u32, String> {
-        match flag {
-            0 => {}, // zero flag
-            1 => {}, // carry flag
-            2 => {}, // greater flag
-            _ => return Err(format!("illegal flag {}", flag))
-        };
+    fn sfg_imm(&mut self) -> Result<u32, String> {
+        let flag = self.memory[self.pc + 1];
+        let val = self.memory[self.pc + 2];
+        
+        debug(format!("SFGI 0x{:x}, 0x{:x}", flag, val));
+        self.fl ^= val << flag;
+        Ok(0)
+    }
 
+    fn sfg_reg(&mut self) -> Result<u32, String> {
+        let r = self.memory[self.pc + 1];
+        let val = self.memory[self.pc + 2];
+        let flag = self.get_reg(r)? as u8;
+
+        debug(format!("SFGR 0x{:x}, 0x{:x}", flag, val));
+        self.fl ^= val << flag;
         Ok(0)
     }
 
@@ -371,7 +404,7 @@ impl CPU {
     fn ld_reg(&mut self) -> Result<u32, String> {
         let dest = self.memory[self.pc + 1]; 
         let src = self.memory[self.pc+2];
-        let addr = self.get_reg(src) as usize;
+        let addr = self.get_reg(src)? as usize;
 
         debug(format!("LOAD r{}, r{}", dest, src));
         match dest {
@@ -391,7 +424,7 @@ impl CPU {
         let src = self.memory[self.pc + 2];
 
         debug(format!("MUL r{},r{}", dest, src));
-        let o = self.get_reg(src);
+        let o = self.get_reg(src)?;
         match dest {
             0 => self.r0 *= o,
             1 => self.r1 *= o,
@@ -425,7 +458,7 @@ impl CPU {
         let src = self.memory[self.pc + 2];
 
         debug(format!("SUB r{},r{}", dest, src));
-        let o = self.get_reg(src);
+        let o = self.get_reg(src)?;
         match dest {
             0 => self.r0 -= o,
             1 => self.r1 -= o,
@@ -460,7 +493,7 @@ impl CPU {
         let src = self.memory[self.pc + 2];
 
         debug(format!("MOV r{},r{}", dest, src));
-        let o = self.get_reg(src);
+        let o = self.get_reg(src)?;
         match dest {
             0 => self.r0 = o,
             1 => self.r1 = o,
@@ -512,7 +545,7 @@ impl CPU {
         let src = self.memory[self.pc+3];
 
         debug(format!("MOVR 0x{:x},r{}", dest, src));
-        let o = self.get_reg(src);
+        let o = self.get_reg(src)?;
         self.memory.write_u32(dest as usize, o)?;
         Ok(0)
     }
@@ -523,8 +556,8 @@ impl CPU {
         let r2 = self.memory[self.pc + 2];
 
         debug(format!("SWP r{},r{}", r1, r2));
-        let o = self.get_reg(r2);
-        let t = self.get_reg(r1);
+        let o = self.get_reg(r2)?;
+        let t = self.get_reg(r1)?;
 
         match r2 {
             0 => self.r0 = t,
@@ -559,7 +592,7 @@ impl CPU {
         let reg = self.memory[self.pc+1];
         debug(format!("PUSH r{}", reg));
         
-        let val = self.get_reg(reg);
+        let val = self.get_reg(reg)?;
         self.sp += 4;
         self.memory.write_u32(self.sp, val)?;
         Ok(0)
@@ -621,7 +654,7 @@ impl CPU {
         let reg = self.memory[self.pc+1];
 
         debug(format!("JMP r{}", reg));
-        self.pc = self.get_reg(reg) as usize;
+        self.pc = self.get_reg(reg)? as usize;
 
         Ok(0)
     }
@@ -645,7 +678,7 @@ impl CPU {
         let reg = self.memory[self.pc+1];
 
         debug(format!("JEQ r{}", reg));
-        let o = self.get_reg(reg);
+        let o = self.get_reg(reg)?;
 
         if self.fl & 0x1 == 1 {
             self.fl &= 0xfe;
@@ -666,7 +699,7 @@ impl CPU {
 
     /// handles an interrupt in a register
     fn int_reg(&mut self) -> Result<u32, String> {
-        let code = self.get_reg(self.memory[self.pc+1]);
+        let code = self.get_reg(self.memory[self.pc+1])?;
         debug(format!("INTR 0x{:x}", code));
         self.handle_interrupt(code)
     }

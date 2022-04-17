@@ -1,7 +1,6 @@
 //use crate::processor::cpu::CPU;
 use crate::translation::{
     build_compile_table,
-    build_translation_table,
     build_decode_table, 
     encode_instruction 
 };

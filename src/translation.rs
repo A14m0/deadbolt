@@ -28,7 +28,9 @@ pub fn build_translation_table() -> HashMap<u8, Instruction> {
     map.insert(0xc5, Instruction::Swp);
     map.insert(0xd5, Instruction::PushAddr);
     map.insert(0xd6, Instruction::PushReg);
-    map.insert(0xf1, Instruction::Pop);
+    map.insert(0xf0, Instruction::SfgReg);
+    map.insert(0xf1, Instruction::SfgImm);
+    map.insert(0xf2, Instruction::Pop);
     map.insert(0xff, Instruction::Nop);
     map.insert(0x6f, Instruction::Hlt);
     map.insert(0x81, Instruction::JmpAddr);
@@ -67,7 +69,9 @@ pub fn build_compile_table() -> HashMap<Instruction, u8> {
     map.insert(Instruction::Swp, 0xc5);
     map.insert(Instruction::PushAddr, 0xd5);
     map.insert(Instruction::PushReg, 0xd6);
-    map.insert(Instruction::Pop, 0xf1);
+    map.insert(Instruction::SfgReg, 0xf0);
+    map.insert(Instruction::SfgImm, 0xf1);
+    map.insert(Instruction::Pop, 0xf2);
     map.insert(Instruction::Nop, 0xff);
     map.insert(Instruction::Hlt, 0x6f);
     map.insert(Instruction::JmpAddr, 0x81);
@@ -107,6 +111,8 @@ pub fn build_decode_table() -> HashMap<&'static str, Instruction> {
     map.insert("swp", Instruction::Swp);
     map.insert("pusha", Instruction::PushAddr);
     map.insert("push", Instruction::PushReg);
+    map.insert("sfgr", Instruction::SfgReg);
+    map.insert("sfgi", Instruction::SfgImm);
     map.insert("pop", Instruction::Pop);
     map.insert("nop", Instruction::Nop);
     map.insert("hlt", Instruction::Hlt);
@@ -209,7 +215,7 @@ pub fn encode_instruction(
         },
         Instruction::AddImm | Instruction::SubImm | Instruction::MulImm | 
         Instruction::AndImm | Instruction::OrImm  | Instruction::XorImm | 
-        Instruction::CmpImm | Instruction::MovDregSaddr | Instruction::MovDregSimm | Instruction::LdImm => {
+        Instruction::CmpImm | Instruction::MovDregSaddr | Instruction::MovDregSimm | Instruction::LdImm | Instruction::SfgReg => {
             // format: inst REG, IMM 
             let mut dest = components[1].to_string();
             dest.retain(|x| x != ',');
@@ -340,6 +346,30 @@ pub fn encode_instruction(
 
             (oc << 24) + (dest_byte << 16)
         },*/
+        Instruction::SfgImm => {
+            // format: inst BYTE ADDR
+            let dest: u32 = match labels.get(components[1]) {
+                Some(a) => *a,
+                None => {
+                    match u32::from_str_radix(&components[1][2..components[1].len()-1], 16){
+                        Ok(a) => a,
+                        Err(e) => return Err(format!("Failed to convert address: {}", e))
+                    }
+                }
+            };
+
+            let src: u32 = match labels.get(components[2]) {
+                Some(a) => *a,
+                None => {
+                    match u32::from_str_radix(&components[2][2..], 16){
+                        Ok(a) => a,
+                        Err(e) => return Err(format!("Failed to convert address: {}", e))
+                    }
+                }
+            };
+
+            (oc << 24) + (dest << 16) + (src << 8)
+        },
         Instruction::Hlt | Instruction::Nop => {
             // format: inst
             oc << 24

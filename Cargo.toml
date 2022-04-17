@@ -9,6 +9,7 @@ edition = "2021"
 colored = "2"
 clap = "2.33.3"
 regex = "1"
+getch = "0.3.1"
 
 [package.release]
 strip = "symbols"

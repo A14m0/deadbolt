@@ -8,7 +8,7 @@ const PAGE_MASK: usize = 0xff;
 /// implement pages so we dont need to allocate all the memory from the getgo
 #[derive(Clone, Copy, Debug)]
 struct Page {
-    data: [u8; PAGE_MASK]
+    data: [u8; PAGE_MASK+1]
 }
 
 ////// PAGE TRAIT IMPLEMENTATIONS //////
@@ -27,7 +27,7 @@ impl IndexMut<usize> for Page {
 
 impl Page {
     fn new() -> Self {
-        Page { data: [0u8; PAGE_MASK] }
+        Page { data: [0u8; PAGE_MASK+1] }
     }
 }
 

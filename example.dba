@@ -1,12 +1,35 @@
 ; This is a simple program that will count to 0xff and halt
 section .text
-movi r1, .done  ; save the done address to r1
+movi r2, 0x5555 ; save the start of the buffer
+sfgi 0x4, 0x1   ; set echo flag
+xor r3, r3
+; r3 will store the offset into r2
 
 .beginning
-addi r0, 0x1    ; increment r0
-cmpi r0, 0xff   ; compare it to 0xff
-jeq r1          ; if its the same jump to .done
+mov r0, r2
+add r0, r3
+
+; call the Interrupt
+int 0xa0
+
+cmpi r1, 0xa    ; compare it to ENTER
+jeqi .print      ; if its the same jump to .done
+addi r3, 0x1    ; increment r3 so we store the next byte at a safe spot
 jmpl .beginning ; otherwise jump to beginning
+
+.print
+movi r3, 0x0
+
+.begin_print
+mov r0, r2
+add r0, r3
+int 0x80
+ldr r0, r0
+cmpi r0, 0x0
+jeqi .done
+addi r3, 0x1
+jmpl .begin_print ; otherwise jump to beginning
+
 
 .done
 hlt             ; halt the processor
