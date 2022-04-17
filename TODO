@@ -1,5 +1,4 @@
 [1] Make sure operations actually decode correctly and all work
-    [a] Fix parsing of JMPL instruction 
-[2] Create interrupts
+[2] Create more interrupts
 [3] Fix compiler
     [a] Make compiler more adaptable
