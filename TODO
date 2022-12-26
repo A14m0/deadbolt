@@ -1,4 +1,6 @@
-[1] Make sure operations actually decode correctly and all work
-[2] Create more interrupts
-[3] Fix compiler
+[1] Rework instruction set to be variable length
+[2] Update logging to use proper macros
+[3] Rework Results to use custom error codes, etc
+[4] Create more interrupts
+[5] Fix compiler
     [a] Make compiler more adaptable
