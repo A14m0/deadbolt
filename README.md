@@ -5,7 +5,7 @@ This was a project I wrote at the end of my operating systems class mostly
 because I had nothing better to waste my time with :)
 
 There are a few things to keep in mind:
-1. This uses a custom assembly language, which I have not well documented (yet!). The instructions and their basic operations are shown in (ASM.md)[/ASM.md]. Some example files are provided in the repository (see (hello_world.dba)[/hello_world.dba] and (example.dba)[/example.dba])
+1. This uses a custom assembly language, which I have not well documented (yet!). The instructions and their basic operations are shown in [ASM.md](/ASM.md). Some example files are provided in the repository (see [hello_world.dba](/hello_world.dba) and [example.dba](/example.dba))
 2. This was written without the intention of it being actually useful for anything, so it is a little cumbersome :)
 
 ## Prerequisites
