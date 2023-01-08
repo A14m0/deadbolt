@@ -9,18 +9,11 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::path::PathBuf;
 use std::io::{BufRead, BufReader, Write};
-use colored::*;
 
-use crate::debug::debug;
+use crate::{debug, info, error};
 
 
-/// enum for the status of the compiler print
-#[derive(Clone, Copy, Debug)]
-enum Status {
-    Info,
-    //Warning,
-    Error
-}
+
 
 
 #[derive(Clone, Debug)]
@@ -43,32 +36,15 @@ impl Section {
 
 
 
-/// color prints with prefix and whatnot
-fn status(s: Status, msg: String) {
-    match s {
-        Status::Info => {
-            println!("{} - {}", "[INFO]".green(), msg)
-        },
-        /*Status::Warning => {
-            println!("{} - {}", "[WARN]".yellow(), msg)
-        },*/
-        Status::Error =>  {
-            println!("{} - {}", "[FAIL]".red(), msg)
-        }
-    }
-}
-
-
 /// compiles a program in `prog`
 pub fn compile(prog: PathBuf, output: PathBuf) {
-    status(Status::Info, format!("Compiling {}...", prog.display()));
+    info!("Compiling {}...", prog.display());
 
     // read all of the data into a vector
     let file = match File::open(prog.clone()) {
         Ok(a) => a,
         Err(e) => {
-            status(Status::Error, format!("Failed to open file {}: {}", prog.display(), e));
-            std::process::exit(1);
+            error!("Failed to open file {}: {}", prog.display(), e);
         }
     };
     let reader = BufReader::new(file);
@@ -89,12 +65,12 @@ pub fn compile(prog: PathBuf, output: PathBuf) {
         let mut lineclone = line.clone();
         lineclone.retain(|x| !x.is_whitespace());
 
-        debug(format!("Line {} - {} characters (prev bytes={})", index, line.len(), prev_bytes));
+        debug!("Line {} - {} characters (prev bytes={})", index, line.len(), prev_bytes);
         if lineclone.len() == 0 {
             continue;
         }
 
-        println!("{}", line);
+        debug!("{}", line);
 
         // remove comment lines
         if lineclone.chars().next().unwrap() != ';' {
@@ -124,8 +100,7 @@ pub fn compile(prog: PathBuf, output: PathBuf) {
                     // its a line that contains a label, but doesnt define one
                     let section = match sections.last_mut() {
                         None => {
-                            status(Status::Error, format!("No section declared before first instruction"));
-                            std::process::exit(1);
+                            error!("No section declared before first instruction");
                         }, 
                         Some(a) => a
                     };
@@ -136,8 +111,7 @@ pub fn compile(prog: PathBuf, output: PathBuf) {
                 // its not a label or section declaration
                 let section = match sections.last_mut() {
                     None => {
-                        status(Status::Error, format!("No section declared before first instruction"));
-                        std::process::exit(1);
+                        error!("No section declared before first instruction");
                     }, 
                     Some(a) => a
                 };
@@ -148,28 +122,27 @@ pub fn compile(prog: PathBuf, output: PathBuf) {
     }
 
     // now that we have put the lines in their corresponding thing
-    debug(format!("Sections currently parsed:"));
+    debug!("Sections currently parsed:");
     for m in sections.iter() {
-        debug(format!(""));
-        debug(format!("{:?}", m));
+        debug!("");
+        debug!("{:?}", m);
     }
-    debug(format!("Labels found: {:?}", labels));
+    debug!("Labels found: {:?}", labels);
 
     for m in sections.iter() {
         for l in m.get_lines() {
             let mut inst = match encode_instruction(l, &compile_table, &decode_table, &labels) {
                 Ok(a) => a,
                 Err(e) => {
-                    status(Status::Error, format!("Failed to compile: {}", e));
-                    std::process::exit(1);
+                    error!("Failed to compile: {}", e);
                 }
             };
             output_bytes.append(&mut inst);
         }
     }
 
-    debug(format!("Output: "));
-    debug(format!("{:?}", output_bytes));
+    debug!("Output: ");
+    debug!("{:?}", output_bytes);
 
     let mut fout: File;
     if output == PathBuf::from("") {
@@ -182,7 +155,7 @@ pub fn compile(prog: PathBuf, output: PathBuf) {
         fout.write_all(&entry.to_be_bytes()).unwrap();
     }
 
-    status(Status::Info, format!("Successfully wrote bytes to file"));
+    info!("Successfully wrote bytes to file");
     
 }
 

@@ -1,7 +1,11 @@
+#![feature(format_args_nl)]
+
+
 mod processor;
 mod compile;
 mod translation;
-mod debug;
+#[macro_use]
+mod log;
 
 use std::io::Read;
 use std::path::PathBuf;
@@ -46,7 +50,7 @@ fn main() {
         match proc.run() {
             Ok(_) => (),
             Err(e) => {
-                println!("[ERROR] Encountered fatal error: {}\n{}", e, proc);
+                error!("Encountered fatal error: {}\n{}", e, proc);
             }
         };
     } else {

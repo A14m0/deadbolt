@@ -8,8 +8,7 @@ use crate::translation::{
 use crate::processor::cpu::mmu::MMU;
 use crate::processor::cpu::interrupts::{IntFn, build_interrupt_table};
 use crate::processor::instructions::Instruction;
-
-use crate::debug::debug;
+use crate::debug;
 
 
 
@@ -86,7 +85,7 @@ impl CPU {
         }
 
         loop {
-            debug(format!("\n{}", self));
+            debug!("\n{}", self);
             self.decode_and_execute()?;
         }
     }
@@ -94,7 +93,7 @@ impl CPU {
     /// decodes and executes instruction
     fn decode_and_execute(&mut self) -> Result<usize, String> {
         let inst = self.memory[self.pc];
-        //debug(format!("OPCODE 0x{:x}", inst);
+        //debug!("OPCODE 0x{:x}", inst);
         let inst_type = match self.decode_table.get(&inst) {
             Some(a) => a,
             None => return Err(format!("Illegal instruction 0x{:x}", inst))
@@ -195,7 +194,7 @@ impl CPU {
         let dest = (self.memory[self.pc + 1] & 0xf0) >> 4; 
         let src = self.memory[self.pc + 1] & 0x0f;
 
-        debug(format!("ADD r{},r{}", dest, src));
+        debug!("ADD r{},r{}", dest, src);
         let v = self.get_reg(src)?;
         
         match dest {
@@ -212,7 +211,7 @@ impl CPU {
         let dest = self.memory[self.pc + 1];
         let src = self.memory.get_u32(self.pc + 2)?;
 
-        debug(format!("ADDI r{},0x{:x}", dest, src));
+        debug!("ADDI r{},0x{:x}", dest, src);
         match dest {
             0 => self.r0 += src,
             1 => self.r1 += src,
@@ -229,7 +228,7 @@ impl CPU {
         let dest = (self.memory[self.pc + 1] & 0xf0) >> 4; 
         let src = self.memory[self.pc + 1] & 0x0f;
 
-        debug(format!("AND r{},r{}", dest, src));
+        debug!("AND r{},r{}", dest, src);
         let o = self.get_reg(src)?;
         match dest {
             0 => self.r0 &= o,
@@ -246,7 +245,7 @@ impl CPU {
         let dest = self.memory[self.pc + 1];
         let src = self.memory.get_u32(self.pc + 2)?;
 
-        debug(format!("ANDI r{},0x{:x}", dest, src));
+        debug!("ANDI r{},0x{:x}", dest, src);
         match dest {
             0 => self.r0 &= src,
             1 => self.r1 &= src,
@@ -264,7 +263,7 @@ impl CPU {
         let src = self.memory[self.pc + 1] & 0x0f;
 
 
-        debug(format!("OR r{},r{}", dest, src));
+        debug!("OR r{},r{}", dest, src);
         let o = self.get_reg(src)?;
         match dest {
             0 => self.r0 |= o,
@@ -282,7 +281,7 @@ impl CPU {
         let dest = self.memory[self.pc + 1];
         let src = self.memory.get_u32(self.pc + 2)?;
 
-        debug(format!("ORI r{},0x{:x}", dest, src));
+        debug!("ORI r{},0x{:x}", dest, src);
         match dest {
             0 => self.r0 |= src,
             1 => self.r1 |= src,
@@ -300,7 +299,7 @@ impl CPU {
         let src = self.memory[self.pc + 1] & 0x0f;
 
 
-        debug(format!("XOR r{},r{}", dest, src));
+        debug!("XOR r{},r{}", dest, src);
         let o = self.get_reg(src)?;
         match dest {
             0 => self.r0 ^= o,
@@ -318,7 +317,7 @@ impl CPU {
         let dest = self.memory[self.pc + 1];
         let src = self.memory.get_u32(self.pc + 2)?;
 
-        debug(format!("XORI r{},0x{:x}", dest, src));
+        debug!("XORI r{},0x{:x}", dest, src);
         match dest {
             0 => self.r0 ^= src,
             1 => self.r1 ^= src,
@@ -336,7 +335,7 @@ impl CPU {
         let src = self.memory[self.pc + 1] & 0x0f;
 
 
-        debug(format!("CMP r{},r{}", test, src));
+        debug!("CMP r{},r{}", test, src);
         
         let o = self.get_reg(src)? as i64;
         let t = self.get_reg(test)? as i64;
@@ -354,11 +353,11 @@ impl CPU {
         let test = self.memory[self.pc + 1];
         let src = self.memory.get_u32(self.pc + 2)?;
 
-        debug(format!("CMPI r{},0x{:x}", test, src));
+        debug!("CMPI r{},0x{:x}", test, src);
         
         let t = self.get_reg(test)? as i64;
         let src = src as i64;
-        debug(format!("\t{}-{}\n\n\n\n", t, src));
+        debug!("\t{}-{}\n\n\n\n", t, src);
         let v = match t-src {
             0 => 1,
             _ => 0
@@ -372,7 +371,7 @@ impl CPU {
         let flag = self.memory[self.pc + 1];
         let val = self.memory[self.pc + 2];
         
-        debug(format!("SFGI 0x{:x}, 0x{:x}", flag, val));
+        debug!("SFGI 0x{:x}, 0x{:x}", flag, val);
         self.fl ^= val << flag;
         Ok(3)
     }
@@ -382,7 +381,7 @@ impl CPU {
         let val = self.memory[self.pc + 2];
         let flag = self.get_reg(r)? as u8;
 
-        debug(format!("SFGR 0x{:x}, 0x{:x}", flag, val));
+        debug!("SFGR 0x{:x}, 0x{:x}", flag, val);
         self.fl ^= val << flag;
         Ok(3)
     }
@@ -392,7 +391,7 @@ impl CPU {
         let dest = self.memory[self.pc + 1]; 
         let addr = self.memory.get_u32(self.pc+2)? as usize;
 
-        debug(format!("LOAD r{}, 0x{:x}", dest, addr));
+        debug!("LOAD r{}, 0x{:x}", dest, addr);
         match dest {
             0 => self.r0 = self.memory.get_u32(addr).unwrap(),
             1 => self.r1 = self.memory.get_u32(addr).unwrap(),
@@ -411,7 +410,7 @@ impl CPU {
 
         let addr = self.get_reg(src)? as usize;
 
-        debug(format!("LOAD r{}, r{}", dest, src));
+        debug!("LOAD r{}, r{}", dest, src);
         match dest {
             0 => self.r0 = self.memory.get_u32(addr).unwrap(),
             1 => self.r1 = self.memory.get_u32(addr).unwrap(),
@@ -429,7 +428,7 @@ impl CPU {
         let src = self.memory[self.pc + 1] & 0x0f;
 
 
-        debug(format!("MUL r{},r{}", dest, src));
+        debug!("MUL r{},r{}", dest, src);
         let o = self.get_reg(src)?;
         match dest {
             0 => self.r0 *= o,
@@ -446,7 +445,7 @@ impl CPU {
         let dest = self.memory[self.pc + 1]; 
         let src = self.memory.get_u32(self.pc + 2)?;
 
-        debug(format!("MULI r{},r{}", dest, src));
+        debug!("MULI r{},r{}", dest, src);
         match dest {
             0 => self.r0 *= src,
             1 => self.r1 *= src,
@@ -463,7 +462,7 @@ impl CPU {
         let dest = (self.memory[self.pc + 1] & 0xf0) >> 4; 
         let src = self.memory[self.pc + 1] & 0x0f;
 
-        debug(format!("SUB r{},r{}", dest, src));
+        debug!("SUB r{},r{}", dest, src);
         let o = self.get_reg(src)?;
         match dest {
             0 => self.r0 -= o,
@@ -481,7 +480,7 @@ impl CPU {
         let dest = self.memory[self.pc + 1]; 
         let src = self.memory.get_u32(self.pc + 2)?;
 
-        debug(format!("SUB r{},0x{:x}", dest, src));
+        debug!("SUB r{},0x{:x}", dest, src);
         match dest {
             0 => self.r0 -= src,
             1 => self.r1 -= src,
@@ -498,7 +497,7 @@ impl CPU {
         let dest = (self.memory[self.pc + 1] & 0xf0) >> 4; 
         let src = self.memory[self.pc + 1] & 0x0f;
 
-        debug(format!("MOV r{},r{}", dest, src));
+        debug!("MOV r{},r{}", dest, src);
         let o = self.get_reg(src)?;
         match dest {
             0 => self.r0 = o,
@@ -516,7 +515,7 @@ impl CPU {
         let dest = self.memory[self.pc + 1]; 
         let src = self.memory.get_u32(self.pc+2)?;
 
-        debug(format!("MOVI r{},0x{:x}", dest, src));
+        debug!("MOVI r{},0x{:x}", dest, src);
         match dest {
             0 => self.r0 = src,
             1 => self.r1 = src,
@@ -533,7 +532,7 @@ impl CPU {
         let dest = self.memory[self.pc+1]; 
         let src = self.memory.get_u32((self.pc+2) as usize)?;
 
-        debug(format!("MOVA r{}, 0x{:x}", dest, src));
+        debug!("MOVA r{}, 0x{:x}", dest, src);
         match dest {
             0 => self.r0 = self.memory.get_u32(src as usize)?,
             1 => self.r1 = self.memory.get_u32(src as usize)?,
@@ -550,7 +549,7 @@ impl CPU {
         let dest = self.memory.get_u32((self.pc+1) as usize)?; 
         let src = self.memory[self.pc+5];
 
-        debug(format!("MOVR 0x{:x},r{}", dest, src));
+        debug!("MOVR 0x{:x},r{}", dest, src);
         let o = self.get_reg(src)?;
         self.memory.write_u32(dest as usize, o)?;
         Ok(6)
@@ -562,7 +561,7 @@ impl CPU {
         let r2 = self.memory[self.pc + 1] & 0x0f;
 
 
-        debug(format!("SWP r{},r{}", r1, r2));
+        debug!("SWP r{},r{}", r1, r2);
         let o = self.get_reg(r2)?;
         let t = self.get_reg(r1)?;
 
@@ -587,7 +586,7 @@ impl CPU {
     /// pushes `val` to the stack
     fn push_addr(&mut self) -> Result<usize, String> {
         let val = self.memory.get_u32(self.pc + 1)?;
-        debug(format!("PUSHA 0x{:x}", val));
+        debug!("PUSHA 0x{:x}", val);
 
         self.sp += 4;
         self.memory.write_u32(self.sp, val)?;
@@ -597,7 +596,7 @@ impl CPU {
     /// pushes `val` to the stack
     fn push_reg(&mut self) -> Result<usize, String> {
         let reg = self.memory[self.pc+1];
-        debug(format!("PUSH r{}", reg));
+        debug!("PUSH r{}", reg);
         
         let val = self.get_reg(reg)?;
         self.sp += 4;
@@ -609,7 +608,7 @@ impl CPU {
     fn pop(&mut self) -> Result<usize, String> {
         let dest = self.memory[self.pc + 1];
 
-        debug(format!("POP r{}", dest));
+        debug!("POP r{}", dest);
 
         let o = self.memory.get_u32(self.sp)?;
         self.sp -= 4;
@@ -627,14 +626,14 @@ impl CPU {
 
     /// does nothing
     fn nop(&mut self) -> Result<usize, String> {
-        debug(format!("NOP"));
+        debug!("NOP");
         Ok(1)
     }
 
     /// performs a long jump 
     fn jmp_addr(&mut self) -> Result<usize, String> {
         let addr = self.memory.get_u32(self.pc+1)? as usize;
-        debug(format!("JMPL 0x{}", addr));
+        debug!("JMPL 0x{}", addr);
         self.pc = addr;
 
         Ok(5)
@@ -646,7 +645,7 @@ impl CPU {
         let short = convert_to_signed(a);
                 
 
-        debug(format!("JMPI 0x{:x}", short));
+        debug!("JMPI 0x{:x}", short);
         if short < 0 {
             self.pc -= short.abs() as usize;
         } else {
@@ -660,7 +659,7 @@ impl CPU {
     fn jmp_reg(&mut self) -> Result<usize, String> {
         let reg = self.memory[self.pc+1];
 
-        debug(format!("JMP r{}", reg));
+        debug!("JMP r{}", reg);
         self.pc = self.get_reg(reg)? as usize;
 
         Ok(1)
@@ -670,7 +669,7 @@ impl CPU {
     fn jeq_imm(&mut self) -> Result<usize, String> {
         let imm = self.memory.get_u32(self.pc+1)?;
 
-        debug(format!("JEQI 0x{:x}", imm));
+        debug!("JEQI 0x{:x}", imm);
         if self.fl & 0x1 == 1 {
             self.fl &= 0xfe;
             self.pc = imm as usize;
@@ -684,7 +683,7 @@ impl CPU {
     fn jeq_reg(&mut self) -> Result<usize, String> {
         let reg = self.memory[self.pc+1];
 
-        debug(format!("JEQ r{}", reg));
+        debug!("JEQ r{}", reg);
         let o = self.get_reg(reg)?;
 
         if self.fl & 0x1 == 1 {
@@ -700,14 +699,14 @@ impl CPU {
     /// handles an immediate interrupt
     fn int_imm(&mut self) -> Result<usize, String> {
         let code = self.memory.get_u32(self.pc+1)?;
-        debug(format!("INTI 0x{:x}", code));
+        debug!("INTI 0x{:x}", code);
         self.handle_interrupt(code)
     }
 
     /// handles an interrupt in a register
     fn int_reg(&mut self) -> Result<usize, String> {
         let code = self.get_reg(self.memory[self.pc+1])?;
-        debug(format!("INTR 0x{:x}", code));
+        debug!("INTR 0x{:x}", code);
         self.handle_interrupt(code)
     }
 
@@ -723,7 +722,7 @@ impl CPU {
 
     /// halt the program
     fn hlt(&mut self) -> ! {
-        debug(format!("HLT"));
+        debug!("HLT");
         std::process::exit(1);
     } 
 

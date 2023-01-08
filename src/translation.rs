@@ -1,7 +1,7 @@
 use std::{collections::HashMap};
 use regex::Regex;
 use crate::processor::instructions::Instruction;
-use crate::debug::debug;
+use crate::debug;
 
 pub fn build_translation_table() -> HashMap<u8, Instruction> {
     let mut map: HashMap<u8, Instruction> = HashMap::new();
@@ -156,10 +156,10 @@ pub fn encode_instruction(
                     }
                 }
 
-                debug(format!("Bytes"));
+                debug!("Bytes");
                 // look for bytes
                 for byte_match in byte_check.captures_iter(line) {
-                    debug(format!("{:?}", &byte_match[0]));
+                    debug!("{:?}", &byte_match[0]);
                     let byte = &byte_match[0][1..byte_match[0].len()-1];
                     let mut ret_byte = match u32::from_str_radix(byte, 16) {
                         Ok(a) => a.to_be_bytes().to_vec(),
@@ -178,7 +178,7 @@ pub fn encode_instruction(
     };
     let oc = *(ct.get(decoded_inst).unwrap());
             
-    debug(format!("{:?}", decoded_inst));
+    debug!("{:?}", decoded_inst);
     
     let rt = match decoded_inst {
         Instruction::AddReg | Instruction::SubReg | Instruction::MulReg | 
@@ -219,7 +219,7 @@ pub fn encode_instruction(
             let mut src_byte = match labels.get(components[2]) {
                 Some(a) => a.to_be_bytes().to_vec(),
                 None => {
-                    debug(format!("{}", &components[2][2..]));
+                    debug!("{}", &components[2][2..]);
                     match u32::from_str_radix(&components[2][2..], 16){
                         Ok(a) => a.to_be_bytes().to_vec(),
                         Err(e) => return Err(format!("Failed to convert address {}: {}", &components[2][2..],  e))

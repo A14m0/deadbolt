@@ -1,7 +1,7 @@
 use std::ops::{Index, IndexMut};
 use std::collections::HashMap;
 
-use crate::debug::debug;
+use crate::debug;
 
 const PAGE_MASK: usize = 0xff;
 
@@ -46,7 +46,7 @@ impl Index<usize> for MMU {
         // translate the address into a useful address
         let page_num = (s & (0xFFFFFFFF - PAGE_MASK)) >> PAGE_MASK.count_ones();
         let page_offset = s & PAGE_MASK;
-        debug(format!("MMU: Reading page number {}, offset {} (s={})", page_num, page_offset, s));
+        debug!("MMU: Reading page number {}, offset {} (s={})", page_num, page_offset, s);
 
         &self.pages[&page_num][page_offset]
     }
@@ -58,7 +58,7 @@ impl IndexMut<usize> for MMU {
         let page_num = (s & (0xFFFFFFFF - PAGE_MASK)) >> PAGE_MASK.count_ones();
         let page_offset = s & PAGE_MASK;
         
-        debug(format!("MMU: Writing page number {}, offset {} (s={})", page_num, page_offset, s));
+        debug!("MMU: Writing page number {}, offset {} (s={})", page_num, page_offset, s);
 
         // check if the page exists
         match self.check_page(page_num) {

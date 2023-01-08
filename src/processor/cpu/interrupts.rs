@@ -3,7 +3,7 @@ use std::io::Write;
 use getch::Getch;
 
 use super::CPU;
-use crate::debug::debug;
+use crate::debug;
 
 
 pub trait Interrupt {
@@ -31,7 +31,7 @@ pub fn build_interrupt_table() -> HashMap<u32, IntFn>{
 /// R1-R3   ->  Not used 
 pub fn int_writeconsole(cpu: &mut CPU) -> Result<usize, String> {
     let o = cpu.memory[cpu.get_reg(0)? as usize] as char;
-    debug(format!("INTERRUPTS: writing {}...", o));
+    debug!("INTERRUPTS: writing {}...", o);
     print!("{}", o);
     std::io::stdout().flush().unwrap();
     Ok(0)
@@ -45,7 +45,7 @@ pub fn int_writeconsole(cpu: &mut CPU) -> Result<usize, String> {
 /// R2-R3   ->  Not used
 pub fn int_readconsole(cpu: &mut CPU) -> Result<usize, String> {
     //let o = cpu.memory[cpu.get_reg(0) as usize] as char;
-    debug(format!("INTERRUPTS: Waiting for read..."));
+    debug!("INTERRUPTS: Waiting for read...");
     
     let g = Getch::new();
     let u = match g.getch() {
@@ -56,12 +56,12 @@ pub fn int_readconsole(cpu: &mut CPU) -> Result<usize, String> {
     if cpu.is_flag_set(1 << 4) {
         print!("{}", u as char);
         std::io::stdout().flush().unwrap();
-        debug(format!("Flag IS set"));
+        debug!("Flag IS set");
     } else {
-        debug(format!("Flag NOT set"));
+        debug!("Flag NOT set");
     }
     
-    debug(format!("INTERRUPTS: Read {:x}", u));
+    debug!("INTERRUPTS: Read {:x}", u);
     let addr = cpu.get_reg(0)? as usize;
     cpu.memory[addr] = u;
     cpu.set_reg(1, u as u32)?;
