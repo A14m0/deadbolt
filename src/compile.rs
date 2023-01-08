@@ -7,6 +7,7 @@ use crate::translation::{
 
 use std::collections::HashMap;
 use std::fs::File;
+use std::path::PathBuf;
 use std::io::{BufRead, BufReader, Write};
 use colored::*;
 
@@ -59,14 +60,14 @@ fn status(s: Status, msg: String) {
 
 
 /// compiles a program in `prog`
-pub fn compile(prog: String, output: String) {
-    status(Status::Info, format!("Compiling {}...", prog));
+pub fn compile(prog: PathBuf, output: PathBuf) {
+    status(Status::Info, format!("Compiling {}...", prog.display()));
 
     // read all of the data into a vector
     let file = match File::open(prog.clone()) {
         Ok(a) => a,
         Err(e) => {
-            status(Status::Error, format!("Failed to open file {}: {}", prog, e));
+            status(Status::Error, format!("Failed to open file {}: {}", prog.display(), e));
             std::process::exit(1);
         }
     };
@@ -76,7 +77,7 @@ pub fn compile(prog: String, output: String) {
     let compile_table = build_compile_table();
     let decode_table = build_decode_table();
     let mut sections: Vec<Section> = Vec::new();
-    let mut output_bytes: Vec<u32> = Vec::new();
+    let mut output_bytes: Vec<u8> = Vec::new();
     let mut labels: HashMap<String, u32> = HashMap::new();
     let mut prev_bytes: u32 = 0;
     
@@ -171,7 +172,7 @@ pub fn compile(prog: String, output: String) {
     debug(format!("{:?}", output_bytes));
 
     let mut fout: File;
-    if output == "" {
+    if output == PathBuf::from("") {
         fout = File::create("a.out".to_string()).unwrap();
     } else {
         fout = File::create(output).unwrap();

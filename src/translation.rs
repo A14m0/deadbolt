@@ -133,7 +133,8 @@ pub fn encode_instruction(
     line: String, 
     ct: &HashMap<Instruction, u8>, 
     dt: &HashMap<&'static str, Instruction>,
-    labels: &HashMap<String, u32>) -> Result<Vec<u32>, String> {
+    labels: &HashMap<String, u32>
+) -> Result<Vec<u8>, String> {
     
     let components: Vec<&str> = line.split(" ").collect();
 
@@ -142,7 +143,7 @@ pub fn encode_instruction(
         None => {
             if components[0] == "bytes" {
                 let line = &line[5..];
-                let mut ret: Vec<u32> = Vec::new();
+                let mut ret: Vec<u8> = Vec::new();
                 let str_check = Regex::new("\"(.*?)\"").unwrap();
                 let byte_check = Regex::new("0[xX][0-9a-fA-F]+").unwrap();
 
@@ -150,22 +151,9 @@ pub fn encode_instruction(
                 for str_match in str_check.captures_iter(line) {
                     let str_raw = &str_match[1];
 
-                    for idx in (0..str_raw.len()).step_by(4) {
-                        let mut tmp: [u8; 4] = [0,0,0,0]; 
-                        // make sure our index doesnt go over the thing
-                        for i in 0..4 {
-                            if idx + i < str_raw.len() {
-                                tmp[i] = str_raw.as_bytes()[idx + i];
-                            } 
-                        } 
-                        ret.push(
-                            ((tmp[0] as u32) << 24)+
-                            ((tmp[1] as u32) << 16) +
-                            ((tmp[2] as u32) << 8) + 
-                            tmp[3] as u32
-                        )
+                    for c in str_raw.as_bytes() {
+                        ret.push(c.clone());
                     }
-
                 }
 
                 debug(format!("Bytes"));
@@ -173,13 +161,13 @@ pub fn encode_instruction(
                 for byte_match in byte_check.captures_iter(line) {
                     debug(format!("{:?}", &byte_match[0]));
                     let byte = &byte_match[0][1..byte_match[0].len()-1];
-                    let ret_byte = match u32::from_str_radix(byte, 16) {
-                        Ok(a) => a,
+                    let mut ret_byte = match u32::from_str_radix(byte, 16) {
+                        Ok(a) => a.to_be_bytes().to_vec(),
                         Err(_e) => {
-                            0
+                            vec![0u8]
                         }
                     };
-                    ret.push(ret_byte);
+                    ret.append(&mut ret_byte);
                 }
 
                 return Ok(ret);
@@ -188,7 +176,7 @@ pub fn encode_instruction(
             return Err(format!("Unknown instruction {}", components[0]));
         }
     };
-    let oc = *(ct.get(decoded_inst).unwrap()) as u32;
+    let oc = *(ct.get(decoded_inst).unwrap());
             
     debug(format!("{:?}", decoded_inst));
     
@@ -201,16 +189,21 @@ pub fn encode_instruction(
             let mut dest = components[1].to_string();
             dest.retain(|x| x != ',');
             let dest_byte = match reg_to_byte(&dest){
-                Ok(a) => a as u32,
+                Ok(a) => a,
                 Err(e) => return Err(e)
             };
             let src_byte = match reg_to_byte(components[2]){
-                Ok(a) => a as u32,
+                Ok(a) => a,
                 Err(e) => return Err(e)
             };
 
-            // put it together
-            (oc << 24) + (dest_byte << 16) + (src_byte << 8)
+            let regs = (dest_byte << 4) + src_byte;
+            
+            let mut ret = Vec::new();
+            ret.push(oc);
+            ret.push(regs);
+            
+            ret
             
         },
         Instruction::AddImm | Instruction::SubImm | Instruction::MulImm | 
@@ -220,54 +213,62 @@ pub fn encode_instruction(
             let mut dest = components[1].to_string();
             dest.retain(|x| x != ',');
             let dest_byte = match reg_to_byte(&dest){
-                Ok(a) => a as u32,
+                Ok(a) => a,
                 Err(e) => return Err(e)
             };
-            let src_byte: u32 = match labels.get(components[2]) {
-                Some(a) => *a,
+            let mut src_byte = match labels.get(components[2]) {
+                Some(a) => a.to_be_bytes().to_vec(),
                 None => {
                     debug(format!("{}", &components[2][2..]));
                     match u32::from_str_radix(&components[2][2..], 16){
-                        Ok(a) => a,
+                        Ok(a) => a.to_be_bytes().to_vec(),
                         Err(e) => return Err(format!("Failed to convert address {}: {}", &components[2][2..],  e))
                     }
                 }
             };
 
             // put it together
-            (oc << 24) + (dest_byte << 16) + src_byte
-            
+            let mut ret = Vec::new();
+            ret.push(oc);
+            ret.push(dest_byte);
+            ret.append(&mut src_byte);
+            ret
         },
         
         Instruction::PushReg | Instruction::Pop | 
         Instruction::JmpReg | Instruction::IntReg | Instruction::JeqReg => {
             // format: inst REG
             let dest_byte = match reg_to_byte(components[1]){
-                Ok(a) => a as u32,
+                Ok(a) => a,
                 Err(e) => return Err(e)
             };
-            
-            // put it together
-            (oc << 24) + (dest_byte << 16)
+
+            let mut ret = Vec::new();
+            ret.push(oc);
+            ret.push(dest_byte);
+            ret
         },
         Instruction::MovDaddrSreg => {
             // format: inst ADDR, REG
-            let dest: u32 = match labels.get(components[1]) {
-                Some(a) => *a,
+            let mut dest = match labels.get(components[1]) {
+                Some(a) => a.to_be_bytes().to_vec(),
                 None => {
                     match u32::from_str_radix(&components[1][2..components[1][2..].len()], 16){
-                        Ok(a) => a,
+                        Ok(a) => a.to_be_bytes().to_vec(),
                         Err(e) => return Err(format!("Failed to convert address {}: {}", &components[1][2..],  e))
                     }
                 }
             };
             let src = match reg_to_byte(components[2]){
-                Ok(a) => a as u32,
+                Ok(a) => a,
                 Err(e) => return Err(e)
             };
 
-            debug(format!("{:x} {:x} {:x}", oc << 24, dest << 16, src));
-            (oc << 24) + (dest << 8) + src
+            let mut ret = Vec::new();
+            ret.push(oc);
+            ret.append(&mut dest);
+            ret.push(src);
+            ret
         }
         /*Instruction::MovDregSaddr | Instruction::MovDregSimm => {
             // format: inst REG, ADDR
@@ -289,18 +290,21 @@ pub fn encode_instruction(
         } */
         Instruction::PushAddr | Instruction::JmpAddr | Instruction::JeqImm | Instruction::JmpImm | Instruction::IntImm=> {
             // format: inst ADDR
-            let dest: u32 = match labels.get(components[1]) {
-                Some(a) => *a,
+            let mut dest = match labels.get(components[1]) {
+                Some(a) => a.to_be_bytes().to_vec(),
                 None => {
                     match u32::from_str_radix(&components[1][2..], 16){
-                        Ok(a) => a,
+                        Ok(a) => a.to_be_bytes().to_vec(),
                         Err(e) => return Err(format!("Failed to convert address: {}", e))
                     }
                 }
             };
 
-            // put it together
-            (oc << 24) + dest
+            
+            let mut ret = Vec::new();
+            ret.push(oc);
+            ret.append(&mut dest);
+            ret
         },
         /*Instruction::LdImm => {
             // format: inst REG, ADDR
@@ -348,36 +352,41 @@ pub fn encode_instruction(
         },*/
         Instruction::SfgImm => {
             // format: inst BYTE ADDR
-            let dest: u32 = match labels.get(components[1]) {
-                Some(a) => *a,
+            let dest: u8 = match labels.get(components[1]) {
+                Some(a) => (*a).try_into().unwrap(),
                 None => {
                     match u32::from_str_radix(&components[1][2..components[1].len()-1], 16){
-                        Ok(a) => a,
+                        Ok(a) => a.try_into().unwrap(),
                         Err(e) => return Err(format!("Failed to convert address: {}", e))
                     }
                 }
             };
 
-            let src: u32 = match labels.get(components[2]) {
-                Some(a) => *a,
+            let src: u8 = match labels.get(components[2]) {
+                Some(a) => (*a).try_into().unwrap(),
                 None => {
                     match u32::from_str_radix(&components[2][2..], 16){
-                        Ok(a) => a,
+                        Ok(a) => a.try_into().unwrap(),
                         Err(e) => return Err(format!("Failed to convert address: {}", e))
                     }
                 }
             };
-
-            (oc << 24) + (dest << 16) + (src << 8)
+            let mut ret = Vec::new();
+            ret.push(oc);
+            ret.push(dest);
+            ret.push(src);
+            ret
         },
         Instruction::Hlt | Instruction::Nop => {
             // format: inst
-            oc << 24
+            let mut ret = Vec::new();
+            ret.push(oc);
+            ret
         }
         
     };
 
-    Ok(vec![rt])
+    Ok(rt)
 }
 
 

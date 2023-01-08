@@ -10,7 +10,7 @@ pub trait Interrupt {
     fn run(r0: u32, r1: u32, r2: u32, r3: u32) -> Result<u32, String>;
 }
 
-pub type IntFn = fn(&mut CPU) -> Result<u32,String>;
+pub type IntFn = fn(&mut CPU) -> Result<usize,String>;
 
 pub fn build_interrupt_table() -> HashMap<u32, IntFn>{
     let mut map = HashMap::new();
@@ -29,7 +29,7 @@ pub fn build_interrupt_table() -> HashMap<u32, IntFn>{
 /// 
 /// R0      ->  Address of byte to write to console 
 /// R1-R3   ->  Not used 
-pub fn int_writeconsole(cpu: &mut CPU) -> Result<u32, String> {
+pub fn int_writeconsole(cpu: &mut CPU) -> Result<usize, String> {
     let o = cpu.memory[cpu.get_reg(0)? as usize] as char;
     debug(format!("INTERRUPTS: writing {}...", o));
     print!("{}", o);
@@ -43,7 +43,7 @@ pub fn int_writeconsole(cpu: &mut CPU) -> Result<u32, String> {
 /// R0      ->  Address where byte will be written 
 /// R1      ->  Copy of byte read saved
 /// R2-R3   ->  Not used
-pub fn int_readconsole(cpu: &mut CPU) -> Result<u32, String> {
+pub fn int_readconsole(cpu: &mut CPU) -> Result<usize, String> {
     //let o = cpu.memory[cpu.get_reg(0) as usize] as char;
     debug(format!("INTERRUPTS: Waiting for read..."));
     

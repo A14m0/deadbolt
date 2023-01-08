@@ -106,7 +106,7 @@ impl MMU {
     }
 
     /// retrieves a u24 from memory at address `offset` (returned as u32)
-    pub fn get_u24(&self, offset: usize) -> Result<u32, String> {
+    pub fn _get_u24(&self, offset: usize) -> Result<u32, String> {
         // bounds check address
         if offset > u32::MAX as usize {
             return Err("Illicit memory access".to_string());
@@ -120,7 +120,7 @@ impl MMU {
     }
 
     /// retrieves a u16 from memory at address `offset`
-    pub fn get_u16(&self, offset: usize) -> Result<u16, String> {
+    pub fn _get_u16(&self, offset: usize) -> Result<u16, String> {
         // bounds check address
         if offset > u32::MAX as usize {
             return Err("Illicit memory access".to_string());

@@ -92,7 +92,7 @@ impl CPU {
     }
 
     /// decodes and executes instruction
-    fn decode_and_execute(&mut self) -> Result<u32, String> {
+    fn decode_and_execute(&mut self) -> Result<usize, String> {
         let inst = self.memory[self.pc];
         //debug(format!("OPCODE 0x{:x}", inst);
         let inst_type = match self.decode_table.get(&inst) {
@@ -100,7 +100,8 @@ impl CPU {
             None => return Err(format!("Illegal instruction 0x{:x}", inst))
         };
         
-        match inst_type {
+        // match the instruction, saving how much we need to increment the program couter
+        let incr = match inst_type {
             Instruction::AddReg => self.add_reg(),
             Instruction::AddImm => self.add_imm(),
             Instruction::SubReg => self.sub_reg(),
@@ -150,7 +151,7 @@ impl CPU {
             //_ => panic!("Unknown opcode: 0x{:x}", &inst)
         }?;
         // increment program counter
-        self.pc += 4;
+        self.pc += incr;
 
         Ok(0)
 
@@ -168,7 +169,7 @@ impl CPU {
     }
 
     /// sets the value of a register
-    pub fn set_reg(&mut self, r: u8, v: u32) -> Result<u32, String> {
+    pub fn set_reg(&mut self, r: u8, v: u32) -> Result<(), String> {
         match r {
             0 => self.r0 = v,
             1 => self.r1 = v,
@@ -177,7 +178,7 @@ impl CPU {
             _ => return Err(format!("Illicit value {}", r))
         };
 
-        Ok(0)
+        Ok(())
     }
 
     /// checks if a certain flag is set
@@ -190,9 +191,9 @@ impl CPU {
     }
 
     /// adds value in `src` into `dest`
-    fn add_reg(&mut self) -> Result<u32, String> {
-        let dest = self.memory[self.pc + 1]; 
-        let src = self.memory[self.pc + 2];
+    fn add_reg(&mut self) -> Result<usize, String> {
+        let dest = (self.memory[self.pc + 1] & 0xf0) >> 4; 
+        let src = self.memory[self.pc + 1] & 0x0f;
 
         debug(format!("ADD r{},r{}", dest, src));
         let v = self.get_reg(src)?;
@@ -204,12 +205,12 @@ impl CPU {
             3 => self.r3 += v,
             _ => return Err(format!("Illicit destination value {}", dest))        
         };
-        Ok(0)
+        Ok(2)
     }
 
-    fn add_imm(&mut self) -> Result<u32, String> {
+    fn add_imm(&mut self) -> Result<usize, String> {
         let dest = self.memory[self.pc + 1];
-        let src = self.memory.get_u16(self.pc + 2)? as u32;
+        let src = self.memory.get_u32(self.pc + 2)?;
 
         debug(format!("ADDI r{},0x{:x}", dest, src));
         match dest {
@@ -220,13 +221,13 @@ impl CPU {
             _ => return Err(format!("Illicit destination value {}", dest))            
         };
 
-        Ok(0)
+        Ok(6)
     }
 
     /// performs logical AND operation, storing result in `dest`
-    fn and_reg(&mut self) -> Result<u32, String> {
-        let dest = self.memory[self.pc + 1];
-        let src = self.memory[self.pc + 2];
+    fn and_reg(&mut self) -> Result<usize, String> {
+        let dest = (self.memory[self.pc + 1] & 0xf0) >> 4; 
+        let src = self.memory[self.pc + 1] & 0x0f;
 
         debug(format!("AND r{},r{}", dest, src));
         let o = self.get_reg(src)?;
@@ -237,13 +238,13 @@ impl CPU {
             3 => self.r3 &= o,
             _ => return Err(format!("Illicit destination value {}", dest))         
         }
-        Ok(0)
+        Ok(2)
     }
 
     /// performs logical AND operation, storing result in `dest`
-    fn and_imm(&mut self) -> Result<u32, String> {
+    fn and_imm(&mut self) -> Result<usize, String> {
         let dest = self.memory[self.pc + 1];
-        let src = self.memory.get_u16(self.pc + 2)? as u32;
+        let src = self.memory.get_u32(self.pc + 2)?;
 
         debug(format!("ANDI r{},0x{:x}", dest, src));
         match dest {
@@ -254,13 +255,14 @@ impl CPU {
             _ => return Err(format!("Illicit destination value {}", dest))           
         }
 
-        Ok(0)
+        Ok(6)
     }
 
     /// performs logical OR operation, storing result in `dest`
-    fn or_reg(&mut self) -> Result<u32, String> {
-        let dest = self.memory[self.pc + 1];
-        let src = self.memory[self.pc + 2];
+    fn or_reg(&mut self) -> Result<usize, String> {
+        let dest = (self.memory[self.pc + 1] & 0xf0) >> 4; 
+        let src = self.memory[self.pc + 1] & 0x0f;
+
 
         debug(format!("OR r{},r{}", dest, src));
         let o = self.get_reg(src)?;
@@ -272,13 +274,13 @@ impl CPU {
             _ => return Err(format!("Illicit destination value {}", dest))         
         }
 
-        Ok(0)
+        Ok(2)
     }
 
     /// performs logical OR operation, storing result in `dest`
-    fn or_imm(&mut self) -> Result<u32, String> {
+    fn or_imm(&mut self) -> Result<usize, String> {
         let dest = self.memory[self.pc + 1];
-        let src = self.memory.get_u16(self.pc + 2)? as u32;
+        let src = self.memory.get_u32(self.pc + 2)?;
 
         debug(format!("ORI r{},0x{:x}", dest, src));
         match dest {
@@ -289,13 +291,14 @@ impl CPU {
             _ => return Err(format!("Illicit destination value {}", dest))           
         }
 
-        Ok(0)
+        Ok(6)
     }
 
     /// performs logical XOR operation, storing result in `dest`
-    fn xor_reg(&mut self) -> Result<u32, String> {
-        let dest = self.memory[self.pc + 1];
-        let src = self.memory[self.pc + 2];
+    fn xor_reg(&mut self) -> Result<usize, String> {
+        let dest = (self.memory[self.pc + 1] & 0xf0) >> 4; 
+        let src = self.memory[self.pc + 1] & 0x0f;
+
 
         debug(format!("XOR r{},r{}", dest, src));
         let o = self.get_reg(src)?;
@@ -307,13 +310,13 @@ impl CPU {
             _ => return Err(format!("Illicit destination value {}", dest))            
         }
 
-        Ok(0)
+        Ok(2)
     }
 
     /// performs logical XOR operation, storing result in `dest`
-    fn xor_imm(&mut self) -> Result<u32, String> {
+    fn xor_imm(&mut self) -> Result<usize, String> {
         let dest = self.memory[self.pc + 1];
-        let src = self.memory.get_u16(self.pc + 2)? as u32;
+        let src = self.memory.get_u32(self.pc + 2)?;
 
         debug(format!("XORI r{},0x{:x}", dest, src));
         match dest {
@@ -324,13 +327,14 @@ impl CPU {
             _ => return Err(format!("Illicit destination value {}", dest))         
         }
 
-        Ok(0)
+        Ok(6)
     }
 
     /// compares two register values, storing success in
-    fn cmp_reg(&mut self) -> Result<u32, String> {
-        let test = self.memory[self.pc + 1];
-        let src = self.memory[self.pc + 2];
+    fn cmp_reg(&mut self) -> Result<usize, String> {
+        let test = (self.memory[self.pc + 1] & 0xf0) >> 4; 
+        let src = self.memory[self.pc + 1] & 0x0f;
+
 
         debug(format!("CMP r{},r{}", test, src));
         
@@ -342,13 +346,13 @@ impl CPU {
         };
         self.fl |= v;
 
-        Ok(0)
+        Ok(2)
     }
 
     /// compares two register values, storing success in
-    fn cmp_imm(&mut self) -> Result<u32, String> {
+    fn cmp_imm(&mut self) -> Result<usize, String> {
         let test = self.memory[self.pc + 1];
-        let src = self.memory.get_u16(self.pc + 2)? as u32;
+        let src = self.memory.get_u32(self.pc + 2)?;
 
         debug(format!("CMPI r{},0x{:x}", test, src));
         
@@ -360,33 +364,33 @@ impl CPU {
             _ => 0
         };
         self.fl |= v;
-        Ok(0)
+        Ok(6)
     }
 
     /// sets the flag value according to `val` and `flags`
-    fn sfg_imm(&mut self) -> Result<u32, String> {
+    fn sfg_imm(&mut self) -> Result<usize, String> {
         let flag = self.memory[self.pc + 1];
         let val = self.memory[self.pc + 2];
         
         debug(format!("SFGI 0x{:x}, 0x{:x}", flag, val));
         self.fl ^= val << flag;
-        Ok(0)
+        Ok(3)
     }
 
-    fn sfg_reg(&mut self) -> Result<u32, String> {
+    fn sfg_reg(&mut self) -> Result<usize, String> {
         let r = self.memory[self.pc + 1];
         let val = self.memory[self.pc + 2];
         let flag = self.get_reg(r)? as u8;
 
         debug(format!("SFGR 0x{:x}, 0x{:x}", flag, val));
         self.fl ^= val << flag;
-        Ok(0)
+        Ok(3)
     }
 
     /// loads a 32-bit value from `addr` into `dest`
-    fn ld_imm(&mut self) -> Result<u32, String> {
+    fn ld_imm(&mut self) -> Result<usize, String> {
         let dest = self.memory[self.pc + 1]; 
-        let addr = self.memory.get_u16(self.pc+2)? as usize;
+        let addr = self.memory.get_u32(self.pc+2)? as usize;
 
         debug(format!("LOAD r{}, 0x{:x}", dest, addr));
         match dest {
@@ -397,13 +401,14 @@ impl CPU {
             _ => return Err(format!("Illicit destination value {}", dest))          
         }
 
-        Ok(0)
+        Ok(6)
     }
 
     /// loads a 32-bit value from `src` into `dest`
-    fn ld_reg(&mut self) -> Result<u32, String> {
-        let dest = self.memory[self.pc + 1]; 
-        let src = self.memory[self.pc+2];
+    fn ld_reg(&mut self) -> Result<usize, String> {
+        let dest = (self.memory[self.pc + 1] & 0xf0) >> 4; 
+        let src = self.memory[self.pc + 1] & 0x0f;
+
         let addr = self.get_reg(src)? as usize;
 
         debug(format!("LOAD r{}, r{}", dest, src));
@@ -415,13 +420,14 @@ impl CPU {
             _ => return Err(format!("Illicit destination value {}", dest))          
         }
 
-        Ok(0)
+        Ok(2)
     }
 
     /// multiplies `dest` with `src`, storing in `dest`
-    fn mul_reg(&mut self) -> Result<u32, String> {
-        let dest = self.memory[self.pc + 1];
-        let src = self.memory[self.pc + 2];
+    fn mul_reg(&mut self) -> Result<usize, String> {
+        let dest = (self.memory[self.pc + 1] & 0xf0) >> 4; 
+        let src = self.memory[self.pc + 1] & 0x0f;
+
 
         debug(format!("MUL r{},r{}", dest, src));
         let o = self.get_reg(src)?;
@@ -432,13 +438,13 @@ impl CPU {
             3 => self.r3 *= o,
             _ => return Err(format!("Illicit destination value {}", dest))        
         }
-        Ok(0)
+        Ok(2)
     }
 
     /// multiplies `dest` with `src`, storing in `dest`
-    fn mul_imm(&mut self) -> Result<u32, String> {
+    fn mul_imm(&mut self) -> Result<usize, String> {
         let dest = self.memory[self.pc + 1]; 
-        let src = self.memory.get_u16(self.pc + 2)? as u32;
+        let src = self.memory.get_u32(self.pc + 2)?;
 
         debug(format!("MULI r{},r{}", dest, src));
         match dest {
@@ -449,13 +455,13 @@ impl CPU {
             _ => return Err(format!("Illicit destination value {}", dest))           
         }
 
-        Ok(0)
+        Ok(6)
     }
 
     /// subtracts `dest` with `src`, storing in `dest`
-    fn sub_reg(&mut self) -> Result<u32, String> {
-        let dest = self.memory[self.pc + 1];
-        let src = self.memory[self.pc + 2];
+    fn sub_reg(&mut self) -> Result<usize, String> {
+        let dest = (self.memory[self.pc + 1] & 0xf0) >> 4; 
+        let src = self.memory[self.pc + 1] & 0x0f;
 
         debug(format!("SUB r{},r{}", dest, src));
         let o = self.get_reg(src)?;
@@ -467,13 +473,13 @@ impl CPU {
             _ => return Err(format!("Illicit destination value {}", dest))          
         }
 
-        Ok(0)
+        Ok(2)
     }
 
     /// subtracts `dest` with `src`, storing in `dest`
-    fn sub_imm(&mut self) -> Result<u32, String> {
+    fn sub_imm(&mut self) -> Result<usize, String> {
         let dest = self.memory[self.pc + 1]; 
-        let src = self.memory.get_u16(self.pc + 2)? as u32;
+        let src = self.memory.get_u32(self.pc + 2)?;
 
         debug(format!("SUB r{},0x{:x}", dest, src));
         match dest {
@@ -484,13 +490,13 @@ impl CPU {
             _ => return Err(format!("Illicit destination value {}", dest))          
         }
 
-        Ok(0)
+        Ok(6)
     }
 
     /// moves value from `src` (register) into `dest` (register)
-    fn mov_dreg_sreg(&mut self) -> Result<u32, String> {
-        let dest = self.memory[self.pc + 1]; 
-        let src = self.memory[self.pc + 2];
+    fn mov_dreg_sreg(&mut self) -> Result<usize, String> {
+        let dest = (self.memory[self.pc + 1] & 0xf0) >> 4; 
+        let src = self.memory[self.pc + 1] & 0x0f;
 
         debug(format!("MOV r{},r{}", dest, src));
         let o = self.get_reg(src)?;
@@ -502,30 +508,30 @@ impl CPU {
             _ => return Err(format!("Illicit destination value {}", dest))           
         }
 
-        Ok(0)
+        Ok(2)
     }
 
-    /// moves value from `src` (register) into `dest` (register)
-    fn mov_dreg_simm(&mut self) -> Result<u32, String> {
+    /// moves value from `src` (immediate) into `dest` (register)
+    fn mov_dreg_simm(&mut self) -> Result<usize, String> {
         let dest = self.memory[self.pc + 1]; 
-        let src = self.memory.get_u16(self.pc+2)?;
+        let src = self.memory.get_u32(self.pc+2)?;
 
         debug(format!("MOVI r{},0x{:x}", dest, src));
         match dest {
-            0 => self.r0 = src as u32,
-            1 => self.r1 = src as u32,
-            2 => self.r2 = src as u32,
-            3 => self.r3 = src as u32,
+            0 => self.r0 = src,
+            1 => self.r1 = src,
+            2 => self.r2 = src,
+            3 => self.r3 = src,
             _ => return Err(format!("Illicit destination value {}", dest))         
         }
 
-        Ok(0)
+        Ok(6)
     }
 
     /// moves value from `src` (address) into `dest` (register)
-    fn mov_dreg_saddr(&mut self) -> Result<u32, String> {
+    fn mov_dreg_saddr(&mut self) -> Result<usize, String> {
         let dest = self.memory[self.pc+1]; 
-        let src = self.memory.get_u16((self.pc+2) as usize)?;
+        let src = self.memory.get_u32((self.pc+2) as usize)?;
 
         debug(format!("MOVA r{}, 0x{:x}", dest, src));
         match dest {
@@ -536,24 +542,25 @@ impl CPU {
             _ => return Err(format!("Illicit destination value {}", dest))           
         }
 
-        Ok(0)
+        Ok(6)
     }
 
     /// moves value from `src` (register) into `dest` (address)
-    fn mov_daddr_sreg(&mut self) -> Result<u32, String> {
-        let dest = self.memory.get_u16((self.pc+1) as usize)?; 
-        let src = self.memory[self.pc+3];
+    fn mov_daddr_sreg(&mut self) -> Result<usize, String> {
+        let dest = self.memory.get_u32((self.pc+1) as usize)?; 
+        let src = self.memory[self.pc+5];
 
         debug(format!("MOVR 0x{:x},r{}", dest, src));
         let o = self.get_reg(src)?;
         self.memory.write_u32(dest as usize, o)?;
-        Ok(0)
+        Ok(6)
     }
 
     /// swaps `r1` and `r2`
-    fn swp(&mut self) -> Result<u32, String> {
-        let r1 = self.memory[self.pc + 1];
-        let r2 = self.memory[self.pc + 2];
+    fn swp(&mut self) -> Result<usize, String> {
+        let r1 = (self.memory[self.pc + 1] & 0xf0) >> 4; 
+        let r2 = self.memory[self.pc + 1] & 0x0f;
+
 
         debug(format!("SWP r{},r{}", r1, r2));
         let o = self.get_reg(r2)?;
@@ -574,32 +581,32 @@ impl CPU {
             _ => return Err(format!("Illicit destination value {}", r1))           
         }
 
-        Ok(0)
+        Ok(2)
     }
 
     /// pushes `val` to the stack
-    fn push_addr(&mut self) -> Result<u32, String> {
-        let val = self.memory.get_u24(self.pc + 1)?;
+    fn push_addr(&mut self) -> Result<usize, String> {
+        let val = self.memory.get_u32(self.pc + 1)?;
         debug(format!("PUSHA 0x{:x}", val));
 
         self.sp += 4;
         self.memory.write_u32(self.sp, val)?;
-        Ok(0)
+        Ok(5)
     }
     
     /// pushes `val` to the stack
-    fn push_reg(&mut self) -> Result<u32, String> {
+    fn push_reg(&mut self) -> Result<usize, String> {
         let reg = self.memory[self.pc+1];
         debug(format!("PUSH r{}", reg));
         
         let val = self.get_reg(reg)?;
         self.sp += 4;
         self.memory.write_u32(self.sp, val)?;
-        Ok(0)
+        Ok(2)
     }
 
     /// pops the top value from the stack into `dest`
-    fn pop(&mut self) -> Result<u32, String> {
+    fn pop(&mut self) -> Result<usize, String> {
         let dest = self.memory[self.pc + 1];
 
         debug(format!("POP r{}", dest));
@@ -615,27 +622,27 @@ impl CPU {
             _ => return Err(format!("Illicit destination value {}", dest))      
         }
 
-        Ok(0)
+        Ok(2)
     }
 
     /// does nothing
-    fn nop(&mut self) -> Result<u32, String> {
+    fn nop(&mut self) -> Result<usize, String> {
         debug(format!("NOP"));
-        Ok(0)
+        Ok(1)
     }
 
     /// performs a long jump 
-    fn jmp_addr(&mut self) -> Result<u32, String> {
-        let addr = self.memory.get_u24(self.pc+1)? as usize;
+    fn jmp_addr(&mut self) -> Result<usize, String> {
+        let addr = self.memory.get_u32(self.pc+1)? as usize;
         debug(format!("JMPL 0x{}", addr));
         self.pc = addr;
 
-        Ok(0)
+        Ok(5)
     }
     
     /// performs a short jump to offset 
-    fn jmp_imm(&mut self) -> Result<u32, String> {
-        let a = self.memory.get_u24(self.pc+1)?;
+    fn jmp_imm(&mut self) -> Result<usize, String> {
+        let a = self.memory.get_u32(self.pc+1)?;
         let short = convert_to_signed(a);
                 
 
@@ -646,35 +653,35 @@ impl CPU {
             self.pc += short.abs() as usize;
         }
 
-        Ok(0)
+        Ok(5)
     }
 
     /// performs a jump to an offset stored in a register
-    fn jmp_reg(&mut self) -> Result<u32, String> {
+    fn jmp_reg(&mut self) -> Result<usize, String> {
         let reg = self.memory[self.pc+1];
 
         debug(format!("JMP r{}", reg));
         self.pc = self.get_reg(reg)? as usize;
 
-        Ok(0)
+        Ok(1)
     }
     
     /// performs a jump to an offset stored in a register
-    fn jeq_imm(&mut self) -> Result<u32, String> {
-        let imm = self.memory.get_u24(self.pc+1)?;
+    fn jeq_imm(&mut self) -> Result<usize, String> {
+        let imm = self.memory.get_u32(self.pc+1)?;
 
         debug(format!("JEQI 0x{:x}", imm));
         if self.fl & 0x1 == 1 {
             self.fl &= 0xfe;
             self.pc = imm as usize;
         } else {
-            self.pc += 4;
+            self.pc += 5;
         }
-        Ok(0)
+        Ok(5)
     }
 
     /// performs a jump to an offset stored in a register
-    fn jeq_reg(&mut self) -> Result<u32, String> {
+    fn jeq_reg(&mut self) -> Result<usize, String> {
         let reg = self.memory[self.pc+1];
 
         debug(format!("JEQ r{}", reg));
@@ -684,28 +691,28 @@ impl CPU {
             self.fl &= 0xfe;
             self.pc = o as usize;
         } else {
-            self.pc += 4;
+            self.pc += 2;
         }
 
-        Ok(0)
+        Ok(2)
     }
 
     /// handles an immediate interrupt
-    fn int_imm(&mut self) -> Result<u32, String> {
-        let code = self.memory.get_u24(self.pc+1)?;
+    fn int_imm(&mut self) -> Result<usize, String> {
+        let code = self.memory.get_u32(self.pc+1)?;
         debug(format!("INTI 0x{:x}", code));
         self.handle_interrupt(code)
     }
 
     /// handles an interrupt in a register
-    fn int_reg(&mut self) -> Result<u32, String> {
+    fn int_reg(&mut self) -> Result<usize, String> {
         let code = self.get_reg(self.memory[self.pc+1])?;
         debug(format!("INTR 0x{:x}", code));
         self.handle_interrupt(code)
     }
 
     /// handles interrupt codes
-    fn handle_interrupt(&mut self, code: u32) -> Result<u32, String> {
+    fn handle_interrupt(&mut self, code: u32) -> Result<usize, String> {
         let int_func = match self.interrupt_table.get(&code) {
             Some(a) => a,
             None => return Err(format!("Unknown interrupt code {:x}", code))
@@ -720,8 +727,6 @@ impl CPU {
         std::process::exit(1);
     } 
 
-
-    
 }
 
 
