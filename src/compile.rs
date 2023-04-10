@@ -2,7 +2,8 @@
 use crate::translation::{
     build_compile_table,
     build_decode_table, 
-    encode_instruction 
+    encode_instruction,
+    get_bytes_from_line
 };
 
 use std::collections::HashMap;
@@ -104,8 +105,8 @@ pub fn compile(prog: PathBuf, output: PathBuf) {
                         }, 
                         Some(a) => a
                     };
+                    prev_bytes += get_bytes_from_line(&line, &decode_table);
                     section.push_line(line);
-                    prev_bytes += 4;
                 }
             } else {
                 // its not a label or section declaration
@@ -115,8 +116,9 @@ pub fn compile(prog: PathBuf, output: PathBuf) {
                     }, 
                     Some(a) => a
                 };
+
+                prev_bytes += get_bytes_from_line(&line, &decode_table);
                 section.push_line(line);
-                prev_bytes += 4;
             }
         } 
     }
@@ -138,6 +140,7 @@ pub fn compile(prog: PathBuf, output: PathBuf) {
                 }
             };
             output_bytes.append(&mut inst);
+            debug!("Length of output: {}", output_bytes.len());
         }
     }
 

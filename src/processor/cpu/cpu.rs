@@ -99,8 +99,25 @@ impl CPU {
             None => return Err(format!("Illegal instruction 0x{:x}", inst))
         };
         
-        // match the instruction, saving how much we need to increment the program couter
+        // match the instruction, saving how much we need to increment the program counter
         let incr = match inst_type {
+            Instruction::AddReg | Instruction::SubReg | Instruction::MulReg | 
+            Instruction::AndReg | Instruction::OrReg  | Instruction::XorReg | 
+            Instruction::CmpReg | Instruction::Swp | Instruction::MovDregSreg|
+            Instruction::LdReg => 2,
+            Instruction::AddImm | Instruction::SubImm | Instruction::MulImm | 
+            Instruction::AndImm | Instruction::OrImm  | Instruction::XorImm | 
+            Instruction::CmpImm | Instruction::MovDregSaddr | Instruction::MovDregSimm | Instruction::LdImm | Instruction::SfgReg => 6,
+            Instruction::PushReg | Instruction::Pop | 
+            Instruction::JmpReg | Instruction::IntReg | Instruction::JeqReg => 2,
+            Instruction::MovDaddrSreg => 6,
+            Instruction::PushAddr | Instruction::JmpAddr | Instruction::JeqImm | Instruction::JmpImm | Instruction::IntImm => 5,
+            Instruction::SfgImm => 3,
+            Instruction::Hlt | Instruction::Nop => 1   
+        };
+
+        // this double lookup is bad...
+        match inst_type {
             Instruction::AddReg => self.add_reg(),
             Instruction::AddImm => self.add_imm(),
             Instruction::SubReg => self.sub_reg(),

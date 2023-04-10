@@ -129,6 +129,67 @@ pub fn build_decode_table() -> HashMap<&'static str, Instruction> {
 }
 
 
+pub fn get_bytes_from_line(
+    line: &String,
+    dt: &HashMap<&'static str, Instruction>,
+) -> u32 {
+    let components: Vec<&str> = line.split(" ").collect();
+
+    let decode_inst = match dt.get(components[0]) {
+        Some(a) => a,
+        None => {
+            if components[0] == "bytes" {
+                let line = &line[5..];
+                let mut ret: Vec<u8> = Vec::new();
+                let str_check = Regex::new("\"(.*?)\"").unwrap();
+                let byte_check = Regex::new("0[xX][0-9a-fA-F]+").unwrap();
+
+                // look for strings
+                for str_match in str_check.captures_iter(line) {
+                    let str_raw = &str_match[1];
+
+                    for c in str_raw.as_bytes() {
+                        ret.push(c.clone());
+                    }
+                }
+
+                debug!("Bytes");
+                // look for bytes
+                for byte_match in byte_check.captures_iter(line) {
+                    debug!("{:?}", &byte_match[0]);
+                    let byte = &byte_match[0][1..byte_match[0].len()-1];
+                    let mut ret_byte = match u32::from_str_radix(byte, 16) {
+                        Ok(a) => a.to_be_bytes().to_vec(),
+                        Err(_e) => {
+                            vec![0u8]
+                        }
+                    };
+                    ret.append(&mut ret_byte);
+                }
+
+                return ret.len() as u32;
+            }
+            return 0;
+        }
+    };
+
+    match decode_inst {
+        Instruction::AddReg | Instruction::SubReg | Instruction::MulReg | 
+        Instruction::AndReg | Instruction::OrReg  | Instruction::XorReg | 
+        Instruction::CmpReg | Instruction::Swp | Instruction::MovDregSreg|
+        Instruction::LdReg => 2,
+        Instruction::AddImm | Instruction::SubImm | Instruction::MulImm | 
+        Instruction::AndImm | Instruction::OrImm  | Instruction::XorImm | 
+        Instruction::CmpImm | Instruction::MovDregSaddr | Instruction::MovDregSimm | Instruction::LdImm | Instruction::SfgReg => 6,
+        Instruction::PushReg | Instruction::Pop | 
+        Instruction::JmpReg | Instruction::IntReg | Instruction::JeqReg => 2,
+        Instruction::MovDaddrSreg => 6,
+        Instruction::PushAddr | Instruction::JmpAddr | Instruction::JeqImm | Instruction::JmpImm | Instruction::IntImm => 5,
+        Instruction::SfgImm => 3,
+        Instruction::Hlt | Instruction::Nop => 1   
+    }
+}
+
 pub fn encode_instruction(
     line: String, 
     ct: &HashMap<Instruction, u8>, 
@@ -288,7 +349,7 @@ pub fn encode_instruction(
 
             (oc << 24) + (dest << 16) + (src & 0xFFFF)
         } */
-        Instruction::PushAddr | Instruction::JmpAddr | Instruction::JeqImm | Instruction::JmpImm | Instruction::IntImm=> {
+        Instruction::PushAddr | Instruction::JmpAddr | Instruction::JeqImm | Instruction::JmpImm | Instruction::IntImm => {
             // format: inst ADDR
             let mut dest = match labels.get(components[1]) {
                 Some(a) => a.to_be_bytes().to_vec(),
