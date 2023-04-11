@@ -1,11 +1,4 @@
-[1] Rework compiler `prev_bytes` to accurately count size of instruction. Could maybe do a two pass, one write one patch phase thing?
-The idea would be to go through like by line and build the binary output for 
-each line. Whenever we encounter a label, we mark the index, fill with zeroes, 
-and move on. Then afterwards we go back to each one of those spots and patch the
-address with where we found the label defined. If a label does not have a 
-defined address then we can let the user know and fail out  
-[2] Update logging to use proper macros
-[3] Rework Results to use custom error codes, etc
-[4] Create more interrupts
-[5] Fix compiler
+[1] Rework Results to use custom error codes, etc
+[2] Create more interrupts
+[3] Fix compiler
     [a] Make compiler more adaptable
