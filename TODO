@@ -1,4 +1,4 @@
 [1] Rework Results to use custom error codes, etc
-[2] Create more interrupts
+[2] Rework how interrupts work so that we can update/modify interrupts
 [3] Fix compiler
     [a] Make compiler more adaptable
